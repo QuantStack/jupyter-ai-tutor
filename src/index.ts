@@ -96,6 +96,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
           );
         });
     }
+
+    console.log('JupyterLab extension jupyter-ai-tutor is activated!');
   }
 };
 
