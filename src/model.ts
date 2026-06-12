@@ -10,12 +10,14 @@ import {
 import { UUID } from '@lumino/coreutils';
 
 import { streamExplanation } from './api';
+import { AI_AVATAR } from './icons';
 
 const TUTOR_USER: IUser = {
-  username: 'ai-tutor',
-  display_name: 'AI Tutor',
+  username: 'tutor',
+  display_name: 'Tutor',
   initials: 'T',
-  bot: true
+  bot: true,
+  avatar_url: AI_AVATAR
 };
 
 class TutorChatContext extends AbstractChatContext {
