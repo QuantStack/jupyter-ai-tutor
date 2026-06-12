@@ -14,3 +14,13 @@ def _jupyter_labextension_paths():
         "src": "labextension",
         "dest": "jupyter-ai-tutor"
     }]
+
+
+def _jupyter_server_extension_points():
+    return [{"module": "jupyter_ai_tutor"}]
+
+
+def _load_jupyter_server_extension(server_app):
+    from .handlers import setup_handlers
+    setup_handlers(server_app.web_app)
+    server_app.log.info("jupyter_ai_tutor: server extension loaded")

@@ -1,11 +1,15 @@
-import { IChatTracker } from '@jupyter/chat';
+import { ChatWidget } from '@jupyter/chat';
 import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
+import { INotebookTracker } from '@jupyterlab/notebook';
+import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
 import { infoIcon } from '@jupyterlab/ui-components';
+
+import { TutorChatModel } from './model';
 
 /**
  * Command IDs used by the jupyter-ai-tutor extension.
@@ -22,58 +26,67 @@ const plugin: JupyterFrontEndPlugin<void> = {
   description:
     'A JupyterLab extension to add an AI-powered tutor assistant to Notebooks.',
   autoStart: true,
-  optional: [ISettingRegistry, IChatTracker, ITranslator],
+  requires: [IRenderMimeRegistry],
+  optional: [ISettingRegistry, INotebookTracker, ITranslator],
   activate: (
     app: JupyterFrontEnd,
+    rmRegistry: IRenderMimeRegistry,
     settingRegistry: ISettingRegistry | null,
-    chatTracker: IChatTracker | null,
+    notebookTracker: INotebookTracker | null,
     translator: ITranslator | null
   ) => {
     const { commands } = app;
     const trans = (translator ?? nullTranslator).load('jupyterlab');
 
-    // Register the command to explain code in active cell
+    const tutorModel = new TutorChatModel({
+      id: 'jupyter-ai-tutor',
+      translator: translator ?? undefined
+    });
+    const chatWidget = new ChatWidget({
+      model: tutorModel,
+      rmRegistry,
+      translator: translator ?? undefined,
+      welcomeMessage: trans.__(
+        'Select a code cell and click **Explain Code** to get started, or type a question below.'
+      )
+    });
+    chatWidget.id = 'jupyter-ai-tutor-panel';
+    chatWidget.title.label = trans.__('Tutor');
+    chatWidget.title.caption = trans.__('Tutor');
+    chatWidget.title.closable = true;
+    app.shell.add(chatWidget, 'right');
+
+    // Keep the enabled state in sync when the active cell changes.
+    notebookTracker?.activeCellChanged.connect(() => {
+      commands.notifyCommandChanged(CommandIDs.explainCode);
+    });
+
     commands.addCommand(CommandIDs.explainCode, {
       label: trans.__('Explain Code'),
-      caption: trans.__('Send cell content to AI chat for explanation'),
+      caption: trans.__('Send cell content to AI tutor for explanation'),
       icon: infoIcon,
-      isEnabled: () =>
-        !!chatTracker?.currentWidget?.model?.activeCellManager?.available,
+      isEnabled: () => {
+        const cell = notebookTracker?.activeCell;
+        return !!cell && cell.model.type === 'code';
+      },
       isVisible: () => true,
       execute: async () => {
-        if (!chatTracker) {
-          return;
+        const cell = notebookTracker?.activeCell;
+        if (!cell || cell.model.type !== 'code') return;
+
+        const source = cell.model.sharedModel.source.trim();
+        if (!source) return;
+
+        const language =
+          notebookTracker?.currentWidget?.model?.defaultKernelLanguage ?? '';
+        const body = `Can you explain this code?\n\n\`\`\`${language}\n${source}\n\`\`\`\n`;
+
+        if (!chatWidget.isAttached) {
+          app.shell.add(chatWidget, 'right');
         }
+        app.shell.activateById(chatWidget.id);
 
-        const chat = chatTracker.currentWidget;
-        if (!chat) {
-          console.warn('No active chat found to send message');
-          return;
-        }
-
-        const { activeCellManager, selectionWatcher } = chat.model;
-
-        let source = '';
-        let language: string | undefined;
-
-        if (selectionWatcher?.selection) {
-          source = selectionWatcher.selection.text;
-          language = selectionWatcher.selection.language;
-        } else if (activeCellManager?.available) {
-          const content = activeCellManager.getContent(false);
-          if (content) {
-            source = content.source;
-            language = content.language;
-          }
-        }
-
-        if (!source.trim()) {
-          return;
-        }
-
-        const body = `Can you explain this code?\n\n\`\`\`${language ?? ''}\n${source}\n\`\`\`\n`;
-        await chat.model.sendMessage({ body });
-        chat.activate();
+        await tutorModel.sendMessage({ body });
       },
       describedBy: {
         args: {
@@ -87,7 +100,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       settingRegistry
         .load(plugin.id)
         .then(_settings => {
-          // Settings loaded — add any config-driven initialization here.
+          // Settings loaded.
         })
         .catch(reason => {
           console.error(

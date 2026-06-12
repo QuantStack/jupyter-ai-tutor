@@ -31,11 +31,8 @@ dev = [
     "jupyterlab>=4",
     "jupyter-builder>=1.0.0",
 ]
-ai = [
-    "jupyter-ai"
-]
-lite-ai = [
-    "jupyterlite-ai"
+server = [
+    "jupyter_ai_jupyternaut",
 ]
 
 [tool.hatch.version]
@@ -51,6 +48,7 @@ exclude = [".github", "binder"]
 [tool.hatch.build.targets.wheel.shared-data]
 "jupyter_ai_tutor/labextension" = "share/jupyter/labextensions/jupyter-ai-tutor"
 "install.json" = "share/jupyter/labextensions/jupyter-ai-tutor/install.json"
+"jupyter-config/server_config/jupyter_ai_tutor.json" = "etc/jupyter/jupyter_server_config.d/jupyter_ai_tutor.json"
 
 [tool.hatch.build.hooks.version]
 path = "jupyter_ai_tutor/_version.py"

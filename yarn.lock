@@ -2577,7 +2577,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/coreutils@npm:^6.5.8":
+"@jupyterlab/coreutils@npm:^6.0.0, @jupyterlab/coreutils@npm:^6.5.8":
   version: 6.5.8
   resolution: "@jupyterlab/coreutils@npm:6.5.8"
   dependencies:
@@ -2866,7 +2866,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/rendermime@npm:^4.2.0, @jupyterlab/rendermime@npm:^4.5.8":
+"@jupyterlab/rendermime@npm:^4.0.0, @jupyterlab/rendermime@npm:^4.2.0, @jupyterlab/rendermime@npm:^4.5.8":
   version: 4.5.8
   resolution: "@jupyterlab/rendermime@npm:4.5.8"
   dependencies:
@@ -2886,7 +2886,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/services@npm:^7.5.8":
+"@jupyterlab/services@npm:^7.0.0, @jupyterlab/services@npm:^7.5.8":
   version: 7.5.8
   resolution: "@jupyterlab/services@npm:7.5.8"
   dependencies:
@@ -8056,11 +8056,15 @@ __metadata:
     "@jupyter/chat": ^0.22.1
     "@jupyter/eslint-plugin": ^0.0.5
     "@jupyterlab/application": ^4.0.0
+    "@jupyterlab/coreutils": ^6.0.0
     "@jupyterlab/notebook": ^4.0.0
+    "@jupyterlab/rendermime": ^4.0.0
+    "@jupyterlab/services": ^7.0.0
     "@jupyterlab/settingregistry": ^4.0.0
     "@jupyterlab/testutils": ^4.0.0
     "@jupyterlab/translation": ^4.0.0
     "@jupyterlab/ui-components": ^4.0.0
+    "@lumino/coreutils": ^2.0.0
     "@types/jest": ^29.2.0
     "@types/json-schema": ^7.0.11
     "@types/react": ^18.0.26
