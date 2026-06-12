@@ -43,9 +43,7 @@ export class TutorChatModel extends AbstractChatModel {
     return undefined;
   }
 
-  async sendMessage(message: INewMessage): Promise<void> {
-    if (!message.body.trim()) return;
-
+  sendMessage(message: INewMessage): void {
     const userMsg: IMessageContent = {
       type: 'msg',
       id: UUID.uuid4(),
@@ -54,6 +52,14 @@ export class TutorChatModel extends AbstractChatModel {
       sender: this.user ?? { username: 'user', display_name: 'You' }
     };
     this.messageAdded(userMsg);
+  }
+
+  async sendMessageToAI(message: INewMessage): Promise<void> {
+    if (!message.body.trim()) return;
+
+    this.sendMessage(message);
+
+    this.updateWriters([{ user: TUTOR_USER }]);
 
     // Add an initial empty tutor message slightly later to preserve order.
     const tutorMsgContent: IMessageContent = {
@@ -79,6 +85,8 @@ export class TutorChatModel extends AbstractChatModel {
         body: `Sorry, an error occurred: ${errorText}`
       });
       console.error('Tutor explanation failed:', err);
+    } finally {
+      this.updateWriters([]);
     }
   }
 

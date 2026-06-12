@@ -3,3 +3,7 @@
 
     https://jupyterlab.readthedocs.io/en/stable/developer/css.html
 */
+
+#jupyter-ai-tutor-panel .jp-chat-input-container {
+    display: none;
+}

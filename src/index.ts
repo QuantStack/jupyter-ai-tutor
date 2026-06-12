@@ -86,7 +86,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
         }
         app.shell.activateById(chatWidget.id);
 
-        await tutorModel.sendMessage({ body });
+        await tutorModel.sendMessageToAI({ body });
       },
       describedBy: {
         args: {
