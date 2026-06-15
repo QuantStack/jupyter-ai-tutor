@@ -2468,7 +2468,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/cells@npm:^4.5.8":
+"@jupyterlab/cells@npm:^4.0.0, @jupyterlab/cells@npm:^4.5.8":
   version: 4.5.8
   resolution: "@jupyterlab/cells@npm:4.5.8"
   dependencies:
@@ -8056,6 +8056,7 @@ __metadata:
     "@jupyter/chat": ^0.22.1
     "@jupyter/eslint-plugin": ^0.0.5
     "@jupyterlab/application": ^4.0.0
+    "@jupyterlab/cells": ^4.0.0
     "@jupyterlab/coreutils": ^6.0.0
     "@jupyterlab/notebook": ^4.0.0
     "@jupyterlab/rendermime": ^4.0.0
