@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from jupyter_server.extension.application import ExtensionApp
-from jupyter_server.utils import url_path_join
 from traitlets import Unicode
 
 from .handlers import ExplainHandler
@@ -30,10 +29,5 @@ class JupyterAITutorApp(ExtensionApp):
 
     def initialize_handlers(self):
         self.handlers = [
-            (
-                url_path_join(
-                    self.serverapp.base_url, "api/jupyter-ai-tutor/explain"
-                ),
-                ExplainHandler,
-            )
+            (r"/api/jupyter-ai-tutor/explain", ExplainHandler),
         ]
