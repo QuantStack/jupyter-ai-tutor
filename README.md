@@ -5,16 +5,23 @@
 
 A JupyterLab extension to add an AI-powered tutor assistant to Notebooks.
 
+[demo]('https://github.com/user-attachments/assets/0f7da09e-fa19-4655-9825-09fdca764859')
+
+It currently relies on [jupyter-ai-jupyternaut](https://github.com/jupyter-ai-contrib/jupyter-ai-jupyternaut) for the agent, it needs to be installed (`pip install jupyter_ai_tutor[server]`).
+
+Once Jupyterlab started, the model must be configured via the menu `Settings>Jupyternaut settings` (model and API key).
+
 ## Requirements
 
 - JupyterLab >= 4.0.0
+- jupyter-ai-jupyternaut (currently the only agent compatible)
 
 ## Install
 
 To install the extension, execute:
 
 ```bash
-pip install jupyter_ai_tutor
+pip install jupyter_ai_tutor[server]
 ```
 
 ## Uninstall
