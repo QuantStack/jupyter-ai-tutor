@@ -5,7 +5,7 @@
 
 A JupyterLab extension to add an AI-powered tutor assistant to Notebooks.
 
-[demo]('https://github.com/user-attachments/assets/0f7da09e-fa19-4655-9825-09fdca764859')
+[a screencast showing an example with jupyter-ai-tutor]('https://github.com/user-attachments/assets/0f7da09e-fa19-4655-9825-09fdca764859')
 
 It currently relies on [jupyter-ai-jupyternaut](https://github.com/jupyter-ai-contrib/jupyter-ai-jupyternaut) for the agent, it needs to be installed (`pip install jupyter_ai_tutor[server]`).
 
