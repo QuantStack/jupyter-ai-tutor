@@ -1,6 +1,7 @@
 import {
   AbstractChatContext,
   AbstractChatModel,
+  IAttachment,
   IChatContext,
   IChatModel,
   IMessageContent,
@@ -11,6 +12,11 @@ import { UUID } from '@lumino/coreutils';
 
 import { streamExplanation } from './api';
 import { AI_AVATAR } from './icons';
+
+interface ITutorNewMessage extends INewMessage {
+  attachments?: IAttachment[];
+  description?: string;
+}
 
 const TUTOR_USER: IUser = {
   username: 'tutor',
@@ -45,18 +51,19 @@ export class TutorChatModel extends AbstractChatModel {
     return undefined;
   }
 
-  sendMessage(message: INewMessage): void {
+  sendMessage(message: ITutorNewMessage): void {
     const userMsg: IMessageContent = {
       type: 'msg',
       id: UUID.uuid4(),
       time: Date.now() / 1000,
       body: message.body,
-      sender: this.user ?? { username: 'user', display_name: 'You' }
+      sender: this.user ?? { username: 'user', display_name: 'You' },
+      attachments: message.attachments
     };
     this.messageAdded(userMsg);
   }
 
-  async sendMessageToAI(message: INewMessage): Promise<void> {
+  async sendMessageToAI(message: ITutorNewMessage): Promise<void> {
     if (!message.body.trim()) return;
 
     this.sendMessage(message);
@@ -77,7 +84,10 @@ export class TutorChatModel extends AbstractChatModel {
 
     try {
       let accumulated = '';
-      for await (const chunk of streamExplanation(message.body)) {
+      for await (const chunk of streamExplanation(
+        message.body,
+        message.description
+      )) {
         accumulated += chunk;
         streamingMsg.update({ body: accumulated });
       }

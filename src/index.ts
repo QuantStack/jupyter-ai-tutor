@@ -1,4 +1,4 @@
-import { ChatWidget } from '@jupyter/chat';
+import { ChatWidget, INotebookAttachment } from '@jupyter/chat';
 import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
@@ -112,6 +112,45 @@ const plugin: JupyterFrontEndPlugin<void> = {
           }
         }
 
+        // Collect preceding markdown cells as exercise description context.
+        const notebook = notebookTracker?.currentWidget?.content;
+        const notebookPath = notebookTracker?.currentWidget?.context.path ?? '';
+        let description: string | undefined;
+        let attachment: INotebookAttachment | undefined;
+
+        if (notebook) {
+          const activeCellIndex = notebook.activeCellIndex;
+          const markdownCells: { id: string; source: string }[] = [];
+
+          for (let i = activeCellIndex - 1; i >= 0; i--) {
+            const precedingCell = notebook.widgets[i];
+            if (precedingCell.model.type === 'code') {
+              break;
+            }
+            if (precedingCell.model.type === 'markdown') {
+              const mdSource = precedingCell.model.sharedModel.source.trim();
+              if (mdSource) {
+                markdownCells.unshift({
+                  id: precedingCell.model.id,
+                  source: mdSource
+                });
+              }
+            }
+          }
+
+          if (markdownCells.length > 0) {
+            description = markdownCells.map(c => c.source).join('\n\n');
+            attachment = {
+              type: 'notebook',
+              value: notebookPath,
+              cells: markdownCells.map(c => ({
+                id: c.id,
+                input_type: 'markdown' as const
+              }))
+            };
+          }
+        }
+
         const question = errorSection
           ? 'Can you explain this code and the error it produced?'
           : 'Can you explain this code?';
@@ -122,7 +161,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
         }
         app.shell.activateById(chatWidget.id);
 
-        await tutorModel.sendMessageToAI({ body });
+        await tutorModel.sendMessageToAI({
+          body,
+          description,
+          attachments: attachment ? [attachment] : undefined
+        });
       },
       describedBy: {
         args: {

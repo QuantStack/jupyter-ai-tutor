@@ -4,9 +4,12 @@ import { ServerConnection } from '@jupyterlab/services';
 /**
  * Streams the tutor explanation for the given message body via SSE.
  * Yields text chunks as they arrive from the backend.
+ * @param body - The user message (code + question)
+ * @param description - Optional exercise description from preceding markdown cells
  */
 export async function* streamExplanation(
-  body: string
+  body: string,
+  description?: string
 ): AsyncGenerator<string, void, undefined> {
   const settings = ServerConnection.makeSettings();
   const url = URLExt.join(settings.baseUrl, 'api/jupyter-ai-tutor/explain');
@@ -15,7 +18,7 @@ export async function* streamExplanation(
     url,
     {
       method: 'POST',
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, description }),
       headers: { 'Content-Type': 'application/json' }
     },
     settings

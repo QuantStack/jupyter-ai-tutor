@@ -12,6 +12,12 @@ class ExplainHandler(APIHandler):
             raise tornado.web.HTTPError(400, "Missing 'body' field in request")
 
         message_body = body["body"]
+        description = body.get("description", "")
+        if description:
+            message_body = (
+                f"<exercise_description>\n{description}\n</exercise_description>\n\n"
+                f"{message_body}"
+            )
 
         config_manager = self.settings.get("jupyternaut.config_manager")
         if not config_manager:
