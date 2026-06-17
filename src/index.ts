@@ -1,16 +1,22 @@
-import { ChatWidget, INotebookAttachment } from '@jupyter/chat';
+import {
+  AttachmentOpenerRegistry,
+  ChatWidget,
+  IAttachment,
+  INotebookAttachment
+} from '@jupyter/chat';
 import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 import { ICodeCellModel } from '@jupyterlab/cells';
-import { INotebookTracker } from '@jupyterlab/notebook';
+import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
 import { infoIcon } from '@jupyterlab/ui-components';
 
 import { TutorChatModel } from './model';
+import { isContinuous } from './utils';
 
 const INFO_ICON_BASE_64 = btoa(infoIcon.svgstr);
 
@@ -47,6 +53,53 @@ const plugin: JupyterFrontEndPlugin<void> = {
     const { commands } = app;
     const trans = (translator ?? nullTranslator).load('jupyterlab');
 
+    // The attachment opener registry.
+    const attachmentOpenerRegistry = new AttachmentOpenerRegistry();
+
+    attachmentOpenerRegistry.set('file', (attachment: IAttachment) => {
+      app.commands.execute('docmanager:open', { path: attachment.value });
+    });
+
+    attachmentOpenerRegistry.set(
+      'notebook',
+      async (attachment: IAttachment) => {
+        // Reveal the notebook.
+        const widget = await app.commands.execute('docmanager:open', {
+          path: attachment.value
+        });
+
+        // Check if cells are attached.
+        if (
+          widget &&
+          attachment.type === 'notebook' &&
+          attachment.cells?.length
+        ) {
+          const panel = widget as NotebookPanel;
+          await panel.context.ready;
+
+          // Get the attached cell indexes in order.
+          const cellList = panel.context.model.cells;
+          const cellIds = attachment.cells.map(cell => cell.id);
+          const range: number[] = [];
+          for (let i = 0; i < cellList.length; i++) {
+            if (cellIds.includes(cellList.get(i).id)) {
+              range.push(i);
+            }
+          }
+          range.sort();
+
+          // Set the first cell as active.
+          panel.content.activeCellIndex = range[0];
+
+          // If cells are contiguous, select all of them.
+          if (isContinuous(range)) {
+            panel.content.extendContiguousSelectionTo(range[range.length - 1]);
+          }
+        }
+      }
+    );
+
+    // Build the chat.
     const tutorModel = new TutorChatModel({
       id: 'jupyter-ai-tutor',
       translator: translator ?? undefined
@@ -57,7 +110,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
       translator: translator ?? undefined,
       welcomeMessage: trans.__(
         `## Select a code cell and click **Explain Code** <img src="data:image/svg+xml;base64,${INFO_ICON_BASE_64}" /> to get started.`
-      )
+      ),
+      attachmentOpenerRegistry
     });
     chatWidget.id = 'jupyter-ai-tutor-panel';
     chatWidget.title.label = trans.__('Tutor');
