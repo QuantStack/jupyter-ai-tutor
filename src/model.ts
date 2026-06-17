@@ -30,6 +30,10 @@ export interface ITutorChatContext extends IChatContext {
    * The stop streaming callback.
    */
   stopStreaming: () => void;
+  /**
+   * The clear messages callback.
+   */
+  clearMessages: () => Promise<void>;
 }
 
 /**
@@ -110,11 +114,20 @@ export class TutorChatModel extends AbstractChatModel {
       user: this.user,
       users: [],
       messages: this.messages,
-      stopStreaming: () => this.stopStreaming()
+      stopStreaming: () => this.stopStreaming(),
+      clearMessages: () => this.clearMessages()
     };
   }
 
   stopStreaming = (): void => {
     this._abortController?.abort();
+  };
+
+  /**
+   * Clears all messages from the chat and resets conversation state.
+   */
+  clearMessages = async (): Promise<void> => {
+    this.stopStreaming();
+    this.messagesDeleted(0, this.messages.length);
   };
 }

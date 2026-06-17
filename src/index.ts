@@ -17,7 +17,7 @@ import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
 import { infoIcon } from '@jupyterlab/ui-components';
 
-import { stopItem } from './components';
+import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
 import { isContinuous } from './utils';
 
@@ -60,6 +60,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     const inputToolbarRegistry = InputToolbarRegistry.defaultToolbarRegistry();
     inputToolbarRegistry.hide('send');
     inputToolbarRegistry.addItem('stop', stopItem(trans));
+    inputToolbarRegistry.addItem('clear', clearItem(trans));
 
     // The attachment opener registry.
     const attachmentOpenerRegistry = new AttachmentOpenerRegistry();
@@ -148,6 +149,16 @@ const plugin: JupyterFrontEndPlugin<void> = {
     }
 
     tutorModel.writersChanged?.connect(writersChanged);
+
+    function messagesChanged(model: IChatModel) {
+      if (model.messages.length) {
+        inputToolbarRegistry?.show('clear');
+      } else {
+        inputToolbarRegistry?.hide('clear');
+      }
+    }
+
+    tutorModel.messagesUpdated.connect(messagesChanged);
 
     // the command to ask for explanation.
     commands.addCommand(CommandIDs.explainCode, {
