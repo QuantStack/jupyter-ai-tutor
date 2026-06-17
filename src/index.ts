@@ -2,7 +2,9 @@ import {
   AttachmentOpenerRegistry,
   ChatWidget,
   IAttachment,
-  INotebookAttachment
+  IChatModel,
+  INotebookAttachment,
+  InputToolbarRegistry
 } from '@jupyter/chat';
 import {
   JupyterFrontEnd,
@@ -15,7 +17,8 @@ import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
 import { infoIcon } from '@jupyterlab/ui-components';
 
-import { TutorChatModel } from './model';
+import { stopItem } from './components';
+import { TUTOR_USER, TutorChatModel } from './model';
 import { isContinuous } from './utils';
 
 const INFO_ICON_BASE_64 = btoa(infoIcon.svgstr);
@@ -52,6 +55,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
   ) => {
     const { commands } = app;
     const trans = (translator ?? nullTranslator).load('jupyterlab');
+
+    // The input toolbar registry
+    const inputToolbarRegistry = InputToolbarRegistry.defaultToolbarRegistry();
+    inputToolbarRegistry.hide('send');
+    inputToolbarRegistry.addItem('stop', stopItem(trans));
 
     // The attachment opener registry.
     const attachmentOpenerRegistry = new AttachmentOpenerRegistry();
@@ -111,7 +119,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
       welcomeMessage: trans.__(
         `## Select a code cell and click **Explain Code** <img src="data:image/svg+xml;base64,${INFO_ICON_BASE_64}" /> to get started.`
       ),
-      attachmentOpenerRegistry
+      attachmentOpenerRegistry,
+      inputToolbarRegistry
     });
     chatWidget.id = 'jupyter-ai-tutor-panel';
     chatWidget.title.label = trans.__('Tutor');
@@ -124,6 +133,23 @@ const plugin: JupyterFrontEndPlugin<void> = {
       commands.notifyCommandChanged(CommandIDs.explainCode);
     });
 
+    // Listen for writers change to display the stop button.
+    function writersChanged(_: IChatModel, writers: IChatModel.IWriter[]) {
+      // Check if AI is currently writing (streaming)
+      const aiWriting = writers.some(
+        writer => writer.user.username === TUTOR_USER.username
+      );
+
+      if (aiWriting) {
+        inputToolbarRegistry?.show('stop');
+      } else {
+        inputToolbarRegistry?.hide('stop');
+      }
+    }
+
+    tutorModel.writersChanged?.connect(writersChanged);
+
+    // the command to ask for explanation.
     commands.addCommand(CommandIDs.explainCode, {
       label: trans.__('Explain Code'),
       caption: trans.__('Send cell content to AI tutor for explanation'),

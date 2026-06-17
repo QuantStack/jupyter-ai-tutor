@@ -2,6 +2,7 @@ import json
 
 import tornado
 from jupyter_server.base.handlers import APIHandler
+from tornado.iostream import StreamClosedError
 
 
 class ExplainHandler(APIHandler):
@@ -65,13 +66,19 @@ class ExplainHandler(APIHandler):
                     self.write(f"data: {json.dumps({'text': text})}\n\n")
                     self.flush()
 
+        except StreamClosedError:
+            return  # Client disconnected; stop streaming
         except Exception as e:
             self.log.exception("Error during tutor LLM call")
-            self.write(f"data: {json.dumps({'error': str(e)})}\n\n")
+            try:
+                self.write(f"data: {json.dumps({'error': str(e)})}\n\n")
+                self.flush()
+            except StreamClosedError:
+                return
+
+        try:
+            self.write("data: [DONE]\n\n")
             self.flush()
-
-        self.write("data: [DONE]\n\n")
-        self.flush()
-        self.finish()
-
-
+            self.finish()
+        except StreamClosedError:
+            pass

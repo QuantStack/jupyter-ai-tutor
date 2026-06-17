@@ -9,7 +9,8 @@ import { ServerConnection } from '@jupyterlab/services';
  */
 export async function* streamExplanation(
   body: string,
-  description?: string
+  description?: string,
+  signal?: AbortSignal
 ): AsyncGenerator<string, void, undefined> {
   const settings = ServerConnection.makeSettings();
   const url = URLExt.join(settings.baseUrl, 'api/jupyter-ai-tutor/explain');
@@ -19,7 +20,8 @@ export async function* streamExplanation(
     {
       method: 'POST',
       body: JSON.stringify({ body, description }),
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      signal
     },
     settings
   );

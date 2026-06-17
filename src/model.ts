@@ -1,5 +1,4 @@
 import {
-  AbstractChatContext,
   AbstractChatModel,
   IAttachment,
   IChatContext,
@@ -18,7 +17,7 @@ interface ITutorNewMessage extends INewMessage {
   description?: string;
 }
 
-const TUTOR_USER: IUser = {
+export const TUTOR_USER: IUser = {
   username: 'tutor',
   display_name: 'Tutor',
   initials: 'T',
@@ -26,14 +25,11 @@ const TUTOR_USER: IUser = {
   avatar_url: AI_AVATAR
 };
 
-class TutorChatContext extends AbstractChatContext {
-  get users(): IUser[] {
-    const users = new Map<string, IUser>();
-    for (const msg of this._model.messages) {
-      users.set(msg.sender.username, msg.sender);
-    }
-    return Array.from(users.values());
-  }
+export interface ITutorChatContext extends IChatContext {
+  /**
+   * The stop streaming callback.
+   */
+  stopStreaming: () => void;
 }
 
 /**
@@ -41,6 +37,8 @@ class TutorChatContext extends AbstractChatContext {
  * Routes messages to the tutor backend and streams responses into the chat.
  */
 export class TutorChatModel extends AbstractChatModel {
+  private _abortController: AbortController | null = null;
+
   constructor(options?: IChatModel.IOptions) {
     super(options);
     this.name = 'Tutor';
@@ -81,28 +79,42 @@ export class TutorChatModel extends AbstractChatModel {
     this.messageAdded(tutorMsgContent);
 
     const streamingMsg = this.messages[this.messages.length - 1];
+    this._abortController = new AbortController();
 
     try {
       let accumulated = '';
       for await (const chunk of streamExplanation(
         message.body,
-        message.description
+        message.description,
+        this._abortController.signal
       )) {
         accumulated += chunk;
         streamingMsg.update({ body: accumulated });
       }
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       const errorText = err instanceof Error ? err.message : String(err);
       streamingMsg.update({
         body: `Sorry, an error occurred: ${errorText}`
       });
       console.error('Tutor explanation failed:', err);
     } finally {
+      this._abortController = null;
       this.updateWriters([]);
     }
   }
 
-  createChatContext(): IChatContext {
-    return new TutorChatContext({ model: this });
+  createChatContext(): ITutorChatContext {
+    return {
+      name: this.name,
+      user: this.user,
+      users: [],
+      messages: this.messages,
+      stopStreaming: () => this.stopStreaming()
+    };
   }
+
+  stopStreaming = (): void => {
+    this._abortController?.abort();
+  };
 }

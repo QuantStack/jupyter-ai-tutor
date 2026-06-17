@@ -4,6 +4,16 @@
     https://jupyterlab.readthedocs.io/en/stable/developer/css.html
 */
 
-#jupyter-ai-tutor-panel .jp-chat-input-container {
+/* Hide the input area */
+#jupyter-ai-tutor-panel .jp-chat-input-container .MuiAutocomplete-root {
   display: none;
+}
+
+/* Hide the whole input container if toolbar is empty */
+#jupyter-ai-tutor-panel .jp-chat-input-container:has(.jp-chat-input-toolbar:empty) {
+  display: none;
+}
+
+#jupyter-ai-tutor-panel .jp-chat-input-container .jp-chat-input-toolbar {
+  border-top: none;
 }
