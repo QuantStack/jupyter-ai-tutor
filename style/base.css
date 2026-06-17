@@ -5,12 +5,14 @@
 */
 
 /* Hide the input area */
+/* stylelint-disable-next-line selector-class-pattern */
 #jupyter-ai-tutor-panel .jp-chat-input-container .MuiAutocomplete-root {
   display: none;
 }
 
 /* Hide the whole input container if toolbar is empty */
-#jupyter-ai-tutor-panel .jp-chat-input-container:has(.jp-chat-input-toolbar:empty) {
+#jupyter-ai-tutor-panel
+  .jp-chat-input-container:has(.jp-chat-input-toolbar:empty) {
   display: none;
 }
 
