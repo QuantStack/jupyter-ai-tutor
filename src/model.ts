@@ -47,8 +47,8 @@ export class TutorChatModel extends AbstractChatModel {
     this.setReady();
   }
 
-  get user(): IUser | undefined {
-    return undefined;
+  get user(): IUser {
+    return { username: 'user', display_name: 'You' };
   }
 
   sendMessage(message: ITutorNewMessage): void {
@@ -57,7 +57,7 @@ export class TutorChatModel extends AbstractChatModel {
       id: UUID.uuid4(),
       time: Date.now() / 1000,
       body: message.body,
-      sender: this.user ?? { username: 'user', display_name: 'You' },
+      sender: this.user,
       attachments: message.attachments
     };
     this.messageAdded(userMsg);
