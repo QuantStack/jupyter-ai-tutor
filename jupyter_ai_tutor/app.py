@@ -5,18 +5,18 @@ from traitlets import Bool, Unicode
 
 from .handlers import ExplainHandler
 
-_DEFAULT_AGENT_MD = Path(__file__).parent / "AGENT.md"
+_DEFAULT_TUTOR_MD = Path(__file__).parent / "TUTOR.md"
 
 
 class JupyterAITutorApp(ExtensionApp):
     name = "jupyter_ai_tutor"
     app_name = "Jupyter AI Tutor"
 
-    agent_md = Unicode(
+    tutor_md = Unicode(
         default_value="",
         help=(
             "Path to a Markdown file used as the system prompt. "
-            "Defaults to the built-in AGENT.md shipped with the extension."
+            "Defaults to the built-in TUTOR.md shipped with the extension."
         ),
     ).tag(config=True)
 
@@ -26,8 +26,8 @@ class JupyterAITutorApp(ExtensionApp):
     ).tag(config=True)
 
     def initialize_settings(self):
-        path = Path(self.agent_md) if self.agent_md else _DEFAULT_AGENT_MD
-        self.settings["jupyter_ai_tutor.system_prompt"] = path.read_text(
+        path = Path(self.tutor_md) if self.tutor_md else _DEFAULT_TUTOR_MD
+        self.settings["jupyter_ai_tutor.default_system_prompt"] = path.read_text(
             encoding="utf-8"
         ).strip()
         self.settings["jupyter_ai_tutor.debug"] = self.debug

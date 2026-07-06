@@ -1,11 +1,13 @@
 import json
 import tempfile
-from datetime import datetime
-from pathlib import Path
-
 import tornado
+
+from datetime import datetime
 from jupyter_server.base.handlers import APIHandler
+from pathlib import Path
 from tornado.iostream import StreamClosedError
+
+_TUTOR_FILENAME = "TUTOR.md"
 
 
 class ExplainHandler(APIHandler):
@@ -32,7 +34,21 @@ class ExplainHandler(APIHandler):
         self.set_header("Cache-Control", "no-cache")
         self.set_header("X-Accel-Buffering", "no")
 
-        system_prompt = self.settings.get("jupyter_ai_tutor.system_prompt", "")
+        notebook_path = body.get("notebookPath", "")
+        server_root = self.settings.get("server_root_dir", "")
+        system_prompt = None
+        if notebook_path and server_root:
+            system_prompt = self._find_tutor_md(notebook_path, server_root)
+            if system_prompt:
+                self.log.info(
+                    "jupyter_ai_tutor: using TUTOR.md resolved from notebook path %s",
+                    notebook_path,
+                )
+        if system_prompt is None:
+            system_prompt = self.settings.get(
+                "jupyter_ai_tutor.default_system_prompt", ""
+            )
+
         debug_mode = self.settings.get("jupyter_ai_tutor.debug", False)
         prompt_file = None
         answer_file = None
@@ -118,3 +134,25 @@ class ExplainHandler(APIHandler):
             self.finish()
         except StreamClosedError:
             pass
+
+    def _find_tutor_md(self, notebook_path: str, server_root: str) -> str | None:
+        """Walk up the directory tree from the notebook's directory toward the
+        server root, returning the content of the first TUTOR.md found, or None."""
+        root = Path(server_root).expanduser().resolve()
+        candidate = (root / notebook_path).resolve().parent
+        self.log.debug("jupyter_ai_tutor: searching TUTOR.md from %s up to %s", candidate, root)
+        # Stay within the server root.
+        try:
+            candidate.relative_to(root)
+        except ValueError:
+            self.log.warning("jupyter_ai_tutor: notebook path %s is outside server root %s", candidate, root)
+            return None
+        while True:
+            tutor_file = candidate / _TUTOR_FILENAME
+            self.log.debug("jupyter_ai_tutor: checking %s", tutor_file)
+            if tutor_file.is_file():
+                return tutor_file.read_text(encoding="utf-8").strip()
+            if candidate == root:
+                break
+            candidate = candidate.parent
+        return None

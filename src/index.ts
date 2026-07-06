@@ -275,6 +275,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
         await tutorModel.sendMessageToAI({
           body: formattedBody,
+          notebookPath,
           attachments: attachment ? [attachment] : undefined
         });
       },
