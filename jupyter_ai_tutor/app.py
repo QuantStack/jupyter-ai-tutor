@@ -12,6 +12,15 @@ class JupyterAITutorApp(ExtensionApp):
     name = "jupyter_ai_tutor"
     app_name = "Jupyter AI Tutor"
 
+    discover_tutor_md = Bool(
+        default_value=True,
+        help=(
+            "If True, look for a TUTOR.md file in the notebook's directory and "
+            "parent directories up to the server root. The first one found takes "
+            "precedence over the configured system prompt."
+        ),
+    ).tag(config=True)
+
     tutor_md = Unicode(
         default_value="",
         help=(
@@ -27,6 +36,7 @@ class JupyterAITutorApp(ExtensionApp):
 
     def initialize_settings(self):
         path = Path(self.tutor_md) if self.tutor_md else _DEFAULT_TUTOR_MD
+        self.settings["jupyter_ai_tutor.discover_tutor_md"] = self.discover_tutor_md
         self.settings["jupyter_ai_tutor.default_system_prompt"] = path.read_text(
             encoding="utf-8"
         ).strip()

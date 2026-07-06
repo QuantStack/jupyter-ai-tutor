@@ -37,7 +37,7 @@ class ExplainHandler(APIHandler):
         notebook_path = body.get("notebookPath", "")
         server_root = self.settings.get("server_root_dir", "")
         system_prompt = None
-        if notebook_path and server_root:
+        if self.settings.get("jupyter_ai_tutor.discover_tutor_md", True) and notebook_path and server_root:
             system_prompt = self._find_tutor_md(notebook_path, server_root)
             if system_prompt:
                 self.log.info(
