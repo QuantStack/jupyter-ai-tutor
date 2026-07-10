@@ -300,7 +300,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
         if (referenceSolution) {
           formattedBody += `\n\n<reference_solution>\n${referenceSolution}\n</reference_solution>`;
         }
-        if (evaluationCriteria) {
+        if (evaluationCriteria && typeof evaluationCriteria === 'string') {
           formattedBody += `\n\n<evaluation_criteria>\n${evaluationCriteria}\n</evaluation_criteria>`;
         }
 
