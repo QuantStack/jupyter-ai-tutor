@@ -281,7 +281,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
         const referenceSolution =
           typeof rawSolution === 'string' ? decodeRot13(rawSolution) : '';
 
-        // Retrieve and format evaluation_criteria from metadata
+        // Retrieve evaluation_criteria from metadata
         const evaluationCriteria = cell.model.getMetadata(
           'evaluation_criteria'
         );
