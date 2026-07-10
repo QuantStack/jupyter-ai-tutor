@@ -19,7 +19,7 @@ import { infoIcon } from '@jupyterlab/ui-components';
 
 import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
-import { decodeRot13, formatEvaluationCriteria, isContinuous } from './utils';
+import { decodeRot13, isContinuous } from './utils';
 
 const INFO_ICON_BASE_64 = btoa(infoIcon.svgstr);
 
@@ -282,8 +282,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
           typeof rawSolution === 'string' ? decodeRot13(rawSolution) : '';
 
         // Retrieve and format evaluation_criteria from metadata
-        const rawCriteria = cell.model.getMetadata('evaluation_criteria');
-        const evaluationCriteria = formatEvaluationCriteria(rawCriteria);
+        const evaluationCriteria = cell.model.getMetadata(
+          'evaluation_criteria'
+        );
 
         const question = errorSection
           ? 'Explain code and error'
