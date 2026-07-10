@@ -20,7 +20,7 @@ Clicking it opens a chat panel on the right side and sends the following context
 
 - The **cell source code** and its **kernel language**
 - Any **error output** produced by the cell (traceback included)
-- **Preceding markdown cells** (up to the previous code cell), used as the exercise description
+- **Preceding code cells and markdown cells** (up to the previous code cell), used as the exercise description
 - An optional **reference solution** and **evaluation criteria** stored in the cell metadata (the solution is ROT13-encoded to keep it hidden from students)
 
 The AI replies using a configurable **system prompt** (`TUTOR.md`) that shapes its pedagogical behavior. By default the extension looks for a `TUTOR.md` file walking up from the notebook's directory to the server root, so different courses or folders can each have their own tutor persona.
