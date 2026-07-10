@@ -29,7 +29,8 @@ class ExplainHandler(APIHandler):
                 503,
                 "No chat model is configured. Set one in 'Settings > AI Settings'.",
             )
-
+        model_used_string = f"/* MODEL USED: {config_manager.chat_model} */\n\n"
+        
         self.set_header("Content-Type", "text/event-stream")
         self.set_header("Cache-Control", "no-cache")
         self.set_header("X-Accel-Buffering", "no")
@@ -52,7 +53,7 @@ class ExplainHandler(APIHandler):
         debug_mode = self.settings.get("jupyter_ai_tutor.debug", False)
         prompt_file = None
         answer_file = None
-        accumulated_response = ""
+        accumulated_response = model_used_string
 
         if debug_mode:
             debug_dir = Path(tempfile.gettempdir()) / "jupyter-ai-tutor"
@@ -65,6 +66,7 @@ class ExplainHandler(APIHandler):
             answer_file = debug_dir / f"{timestamp}_jupyter_tutor_answer.txt"
             try:
                 with prompt_file.open("w", encoding="utf-8") as f:
+                    f.write(model_used_string)
                     f.write("=== SYSTEM PROMPT ===\n\n")
                     f.write(system_prompt)
                     f.write("\n\n=== USER MESSAGE ===\n\n")
