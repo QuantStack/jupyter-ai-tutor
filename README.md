@@ -27,6 +27,8 @@ The AI replies using a configurable **system prompt** (`TUTOR.md`) that shapes i
 
 ## Configuration
 
+### TUTOR
+
 The extension can be configured via `jupyter_server_config.py` (or any traitlets CLI config):
 
 ```python
@@ -40,6 +42,15 @@ c.JupyterAITutorApp.debug = False              # default
 | `discover_tutor_md` | bool | `True`  | When enabled, the extension searches for a `TUTOR.md` file starting from the active notebook's directory and walking up to the server root. The first file found takes precedence over the configured system prompt. |
 | `tutor_md`          | str  | `""`    | Path to a Markdown file used as the system prompt. When empty, falls back to the built-in `TUTOR.md` shipped with the extension.                                                                                     |
 | `debug`             | bool | `False` | When enabled, prompts and model replies are logged to `jupyter-ai-tutor` temp directory for debugging purposes.                                                                                                      |
+
+### Jupyternaut
+
+The default model and API key used with Jupyternaut agent can be setup via `jupyter_server_config.py` (or any traitlets CLI config):
+
+```python
+c.AiExtension.initial_language_model=mistral/devstral-latest
+c.AiExtension.default_api_keys={'MISTRAL_API_KEY': '***'}
+```
 
 ## Requirements
 
