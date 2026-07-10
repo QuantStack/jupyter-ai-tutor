@@ -13,6 +13,18 @@ Once Jupyterlab started, the model must be configured via the menu `Settings>Jup
 
 See Jupyternaut [documentation](https://jupyter-ai.readthedocs.io/en/v3/users/jupyternaut/index.html#model-selection) for details about setting up the agent.
 
+## How it works
+
+Each code cell in a notebook gets an **Explain Code** button in its toolbar ![info icon](./info.png) \
+Clicking it opens a chat panel on the right side and sends the following context to the AI:
+
+- The **cell source code** and its **kernel language**
+- Any **error output** produced by the cell (traceback included)
+- **Preceding markdown cells** (up to the previous code cell), used as the exercise description
+- An optional **reference solution** and **evaluation criteria** stored in the cell metadata (the solution is ROT13-encoded to keep it hidden from students)
+
+The AI replies using a configurable **system prompt** (`TUTOR.md`) that shapes its pedagogical behavior. By default the extension looks for a `TUTOR.md` file walking up from the notebook's directory to the server root, so different courses or folders can each have their own tutor persona.
+
 ## Configuration
 
 The extension can be configured via `jupyter_server_config.py` (or any traitlets CLI config):
