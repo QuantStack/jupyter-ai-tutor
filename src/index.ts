@@ -19,7 +19,7 @@ import { infoIcon } from '@jupyterlab/ui-components';
 
 import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
-import { decodeRot13, isContinuous } from './utils';
+import { decodeSolution, isContinuous } from './utils';
 
 const INFO_ICON_BASE_64 = btoa(infoIcon.svgstr);
 
@@ -279,7 +279,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
         // Retrieve and decode reference_solution from metadata
         const rawSolution = cell.model.getMetadata('reference_solution');
         const referenceSolution =
-          typeof rawSolution === 'string' ? decodeRot13(rawSolution) : '';
+          typeof rawSolution === 'string' ? decodeSolution(rawSolution) : '';
 
         // Retrieve evaluation_criteria from metadata
         const evaluationCriteria = cell.model.getMetadata(
