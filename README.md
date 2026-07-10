@@ -11,7 +11,23 @@ It currently relies on [jupyter-ai-jupyternaut](https://github.com/jupyter-ai-co
 
 Once Jupyterlab started, the model must be configured via the menu `Settings>Jupyternaut settings` (model and API key).
 
-See Jupyternaut [documentation](https://jupyter-ai.readthedocs.io/en/v3/users/jupyternaut/index.html#model-selection) to set it up.
+See Jupyternaut [documentation](https://jupyter-ai.readthedocs.io/en/v3/users/jupyternaut/index.html#model-selection) for details about setting up the agent.
+
+## Configuration
+
+The extension can be configured via `jupyter_server_config.py` (or any traitlets CLI config):
+
+```python
+c.JupyterAITutorApp.discover_tutor_md = True   # default
+c.JupyterAITutorApp.tutor_md = ""              # default (uses built-in TUTOR.md)
+c.JupyterAITutorApp.debug = False              # default
+```
+
+| Parameter           | Type | Default | Description                                                                                                                                                                                                          |
+| ------------------- | ---- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `discover_tutor_md` | bool | `True`  | When enabled, the extension searches for a `TUTOR.md` file starting from the active notebook's directory and walking up to the server root. The first file found takes precedence over the configured system prompt. |
+| `tutor_md`          | str  | `""`    | Path to a Markdown file used as the system prompt. When empty, falls back to the built-in `TUTOR.md` shipped with the extension.                                                                                     |
+| `debug`             | bool | `False` | When enabled, prompts and model replies are logged to `jupyter-ai-tutor` temp directory for debugging purposes.                                                                                                      |
 
 ## Requirements
 
