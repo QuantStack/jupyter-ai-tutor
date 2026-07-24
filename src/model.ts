@@ -12,10 +12,12 @@ import { UUID } from '@lumino/coreutils';
 import { streamExplanation } from './api';
 import { AI_AVATAR } from './icons';
 
-interface ITutorNewMessage extends INewMessage {
+export interface ITutorNewMessage extends INewMessage {
   attachments?: IAttachment[];
   notebookPath?: string;
   formattedBody?: string;
+  action?: 'explain' | 'review';
+  payload?: Record<string, unknown>;
 }
 
 export const TUTOR_USER: IUser = {
@@ -91,7 +93,9 @@ export class TutorChatModel extends AbstractChatModel {
       for await (const chunk of streamExplanation(
         message.formattedBody ?? message.body,
         message.notebookPath,
-        this._abortController.signal
+        message.action,
+        this._abortController.signal,
+        message.payload
       )) {
         accumulated += chunk;
         streamingMsg.update({ body: accumulated });

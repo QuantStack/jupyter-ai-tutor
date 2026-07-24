@@ -11,7 +11,9 @@ import { ServerConnection } from '@jupyterlab/services';
 export async function* streamExplanation(
   body: string,
   notebookPath?: string,
-  signal?: AbortSignal
+  action?: 'explain' | 'review',
+  signal?: AbortSignal,
+  payload?: Record<string, unknown>
 ): AsyncGenerator<string, void, undefined> {
   const settings = ServerConnection.makeSettings();
   const url = URLExt.join(settings.baseUrl, 'api/jupyter-ai-tutor/explain');
@@ -20,7 +22,12 @@ export async function* streamExplanation(
     url,
     {
       method: 'POST',
-      body: JSON.stringify({ body, notebookPath }),
+      body: JSON.stringify({
+        body,
+        notebookPath,
+        action: action ?? 'explain',
+        ...(payload ?? {})
+      }),
       headers: { 'Content-Type': 'application/json' },
       signal
     },
