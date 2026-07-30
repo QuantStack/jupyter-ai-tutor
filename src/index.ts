@@ -286,6 +286,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
           'evaluation_criteria'
         );
 
+        // Retrieve initial_source from metadata
+        const initialSource = cell.model.getMetadata('initial_source');
+
         const question = errorSection
           ? 'Explain code and error'
           : 'Explain code';
@@ -297,6 +300,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
         }
         formattedBody += `<source>\n${studentAnswer}\n</source>`;
 
+        if (initialSource && typeof initialSource === 'string') {
+          formattedBody += `\n\n<initial_source>\n${initialSource}\n</initial_source>`;
+        }
         if (referenceSolution) {
           formattedBody += `\n\n<reference_solution>\n${referenceSolution}\n</reference_solution>`;
         }
