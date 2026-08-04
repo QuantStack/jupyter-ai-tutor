@@ -20,6 +20,25 @@
   border-top: none;
 }
 
+/* Style Go to Cell links as standard buttons */
+#jupyter-ai-tutor-panel a[href^='#tutor-cell-'] {
+  display: inline-block;
+  background-color: var(--jp-brand-color1, #2196f3);
+  color: var(--jp-layout-color0, #fff) !important;
+  text-decoration: none;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-weight: 500;
+  font-size: var(--jp-ui-font-size0, 11px);
+  white-space: nowrap;
+  margin-top: 8px;
+}
+
+#jupyter-ai-tutor-panel a[href^='#tutor-cell-']:hover {
+  background-color: var(--jp-brand-color0, #1976d2);
+  text-decoration: none;
+}
+
 /* Override toolbar visibility on cell overlap */
 /* stylelint-disable-next-line selector-class-pattern */
 .jp-toolbar-overlap .jp-cell-toolbar {

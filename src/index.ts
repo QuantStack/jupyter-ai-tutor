@@ -10,7 +10,7 @@ import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
-import { ICodeCellModel } from '@jupyterlab/cells';
+import { Cell, ICodeCellModel } from '@jupyterlab/cells';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
@@ -129,7 +129,37 @@ const plugin: JupyterFrontEndPlugin<void> = {
     chatWidget.title.closable = true;
     app.shell.add(chatWidget, 'right');
 
-    // Keep the enabled state in sync when the active cell changes.
+    chatWidget.node.addEventListener('click', (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLAnchorElement) {
+        const href = target.getAttribute('href');
+        if (href && href.startsWith('#tutor-cell-')) {
+          event.preventDefault();
+          const cellId = href.slice('#tutor-cell-'.length);
+          if (!notebookTracker) {
+            return;
+          }
+          const notebookPanel = notebookTracker.find((panel: NotebookPanel) =>
+            panel.content.widgets.some(
+              (widget: Cell) => widget.model.id === cellId
+            )
+          );
+          if (notebookPanel) {
+            app.shell.activateById(notebookPanel.id);
+            const index = notebookPanel.content.widgets.findIndex(
+              (widget: Cell) => widget.model.id === cellId
+            );
+            if (index !== -1) {
+              notebookPanel.content.activeCellIndex = index;
+              notebookPanel.content.widgets[index].node.scrollIntoView({
+                block: 'nearest'
+              });
+            }
+          }
+        }
+      }
+    });
+
     notebookTracker?.activeCellChanged.connect(() => {
       commands.notifyCommandChanged(CommandIDs.explainCode);
     });
@@ -321,6 +351,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
           body: bodyContent,
           formattedBody: formattedBody,
           notebookPath,
+          cellId: cell.model.id,
           attachments: attachment ? [attachment] : undefined
         });
       },

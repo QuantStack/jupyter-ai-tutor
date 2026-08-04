@@ -14,6 +14,7 @@ import { AI_AVATAR } from './icons';
 
 interface ITutorNewMessage extends INewMessage {
   attachments?: IAttachment[];
+  cellId?: string;
   notebookPath?: string;
   formattedBody?: string;
 }
@@ -94,6 +95,10 @@ export class TutorChatModel extends AbstractChatModel {
         this._abortController.signal
       )) {
         accumulated += chunk;
+        streamingMsg.update({ body: accumulated });
+      }
+      if (message.cellId) {
+        accumulated += `\n\n[Go to Cell](#tutor-cell-${message.cellId})`;
         streamingMsg.update({ body: accumulated });
       }
     } catch (err) {
