@@ -306,17 +306,13 @@ const plugin: JupyterFrontEndPlugin<void> = {
         typeof rawSolution === 'string' ? decodeSolution(rawSolution) : '';
 
       // Retrieve evaluation_criteria from metadata
-      const evaluationCriteria = cell.model.getMetadata(
-        'evaluation_criteria'
-      );
+      const evaluationCriteria = cell.model.getMetadata('evaluation_criteria');
 
       // Retrieve initial_source from metadata
       const initialSource = cell.model.getMetadata('initial_source');
 
       const actionTitle = action === 'review' ? 'Review code' : 'Explain code';
-      const question = errorSection
-        ? `${actionTitle} and error`
-        : actionTitle;
+      const question = errorSection ? `${actionTitle} and error` : actionTitle;
       const bodyContent = `${question}\n\n\`\`\`${language}\n${source}\n\`\`\`${errorSection}\n`;
 
       let formattedBody = '';
