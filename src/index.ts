@@ -10,7 +10,7 @@ import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
-import { ICodeCellModel } from '@jupyterlab/cells';
+import { Cell, ICodeCellModel } from '@jupyterlab/cells';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
@@ -19,7 +19,7 @@ import { codeCheckIcon, infoIcon } from '@jupyterlab/ui-components';
 
 import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
-import { decodeSolution, isContinuous } from './utils';
+import { computeDiff, decodeSolution, isContinuous } from './utils';
 
 const INFO_ICON_BASE_64 = btoa(infoIcon.svgstr);
 const CHECK_ICON_BASE_64 = btoa(codeCheckIcon.svgstr);
@@ -131,10 +131,41 @@ const plugin: JupyterFrontEndPlugin<void> = {
     chatWidget.title.closable = true;
     app.shell.add(chatWidget, 'right');
 
-    // Keep the enabled state in sync when the active cell changes.
-    notebookTracker?.activeCellChanged.connect(() => {
+    function ensureInitialSource(cell: Cell): void {
+      if (
+        cell.model.type === 'code' &&
+        cell.model.getMetadata('initial_source') === undefined
+      ) {
+        cell.model.setMetadata('initial_source', cell.model.sharedModel.source);
+      }
+    }
+
+    notebookTracker?.widgetAdded.connect((_, panel) => {
+      panel.context.ready.then(() => {
+        panel.content.widgets.forEach(c => ensureInitialSource(c));
+      });
+    });
+
+    let previousCell: Cell | null = null;
+    const onContentChanged = () => {
+      commands.notifyCommandChanged(CommandIDs.reviewCode);
+    };
+
+    // Keep the enabled state in sync when active cell or cell content changes.
+    notebookTracker?.activeCellChanged.connect((_, cell) => {
+      if (cell) {
+        ensureInitialSource(cell);
+      }
       commands.notifyCommandChanged(CommandIDs.explainCode);
       commands.notifyCommandChanged(CommandIDs.reviewCode);
+
+      if (previousCell && !previousCell.isDisposed) {
+        previousCell.model.contentChanged.disconnect(onContentChanged);
+      }
+      if (cell) {
+        cell.model.contentChanged.connect(onContentChanged);
+      }
+      previousCell = cell;
     });
 
     // Listen for writers change to display the stop button.
@@ -295,7 +326,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       formattedBody += `<source>\n${studentAnswer}\n</source>`;
 
       if (initialSource && typeof initialSource === 'string') {
-        formattedBody += `\n\n<initial_source>\n${initialSource}\n</initial_source>`;
+        formattedBody += `\n\n<diff>\n${computeDiff(initialSource, source)}\n</diff>`;
       }
       if (referenceSolution) {
         formattedBody += `\n\n<reference_solution>\n${referenceSolution}\n</reference_solution>`;
@@ -348,7 +379,17 @@ const plugin: JupyterFrontEndPlugin<void> = {
       icon: codeCheckIcon,
       isEnabled: () => {
         const cell = notebookTracker?.activeCell;
-        return !!cell && cell.model.type === 'code';
+        if (!cell || cell.model.type !== 'code') {
+          return false;
+        }
+        const initialSource = cell.model.getMetadata('initial_source');
+        if (typeof initialSource === 'string') {
+          const source = cell.model.sharedModel.source.trim();
+          if (initialSource.trim() === source) {
+            return false;
+          }
+        }
+        return true;
       },
       isVisible: () => true,
       execute: async () => {
