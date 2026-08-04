@@ -24,3 +24,30 @@ export function decodeSolution(str: string): string {
   // });
   return str;
 }
+
+/**
+ * Computes a line-by-line diff between initial starter code and current code.
+ */
+export function computeDiff(initial: string, current: string): string {
+  if (initial.trim() === current.trim()) {
+    return 'No changes made yet';
+  }
+  const initLines = initial.split('\n');
+  const currLines = current.split('\n');
+  const maxLen = Math.max(initLines.length, currLines.length);
+  const diffLines: string[] = [];
+
+  for (let i = 0; i < maxLen; i++) {
+    const orig = initLines[i];
+    const curr = currLines[i];
+    if (orig !== curr) {
+      if (orig !== undefined) {
+        diffLines.push(`- ${orig}`);
+      }
+      if (curr !== undefined) {
+        diffLines.push(`+ ${curr}`);
+      }
+    }
+  }
+  return diffLines.join('\n');
+}
