@@ -78,8 +78,17 @@ class ExplainHandler(APIHandler):
             from jupyter_ai_jupyternaut.jupyternaut.chat_models import ChatLiteLLM
             from langchain_core.messages import HumanMessage, SystemMessage
 
+            temperature = self.settings.get("jupyter_ai_tutor.temperature", 0.1)
+            model_kwargs = dict(config_manager.chat_model_args)
+            model_kwargs.setdefault("temperature", temperature)
+            self.log.info(
+                "jupyter_ai_tutor: initiating request with model %s and temperature %s",
+                config_manager.chat_model,
+                model_kwargs.get("temperature"),
+            )
+
             model = ChatLiteLLM(
-                **config_manager.chat_model_args,
+                **model_kwargs,
                 model=config_manager.chat_model,
                 streaming=True,
             )

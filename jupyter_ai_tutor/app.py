@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from jupyter_server.extension.application import ExtensionApp
-from traitlets import Bool, Unicode
+from traitlets import Bool, Float, Unicode
 
 from .handlers import ExplainHandler
 
@@ -34,6 +34,11 @@ class JupyterAITutorApp(ExtensionApp):
         help="Whether to log prompts and replies to /tmp for debugging.",
     ).tag(config=True)
 
+    temperature = Float(
+        default_value=0.1,
+        help="Sampling temperature passed to the LLM (0.0 to 1.0).",
+    ).tag(config=True)
+
     def initialize_settings(self):
         path = Path(self.tutor_md) if self.tutor_md else _DEFAULT_TUTOR_MD
         self.settings["jupyter_ai_tutor.discover_tutor_md"] = self.discover_tutor_md
@@ -41,7 +46,13 @@ class JupyterAITutorApp(ExtensionApp):
             encoding="utf-8"
         ).strip()
         self.settings["jupyter_ai_tutor.debug"] = self.debug
-        self.log.info("jupyter_ai_tutor: loaded system prompt from %s (debug=%s)", path, self.debug)
+        self.settings["jupyter_ai_tutor.temperature"] = self.temperature
+        self.log.info(
+            "jupyter_ai_tutor: loaded system prompt from %s (debug=%s, temperature=%s)",
+            path,
+            self.debug,
+            self.temperature,
+        )
 
 
     def initialize_handlers(self):
