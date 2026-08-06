@@ -38,20 +38,18 @@ class ExplainHandler(APIHandler):
 
         notebook_path = body.get("notebookPath", "")
         server_root = self.settings.get("server_root_dir", "")
-        raw_system_prompt = None
+        system_prompt = None
         if self.settings.get("jupyter_ai_tutor.discover_tutor_md", True) and notebook_path and server_root:
-            raw_system_prompt = self._find_tutor_md(notebook_path, server_root)
-            if raw_system_prompt:
+            system_prompt = self._find_tutor_md(notebook_path, server_root)
+            if system_prompt:
                 self.log.info(
                     "jupyter_ai_tutor: using TUTOR.md resolved from notebook path %s",
                     notebook_path,
                 )
-        if raw_system_prompt is None:
-            raw_system_prompt = self.settings.get(
+        if system_prompt is None:
+            system_prompt = self.settings.get(
                 "jupyter_ai_tutor.default_system_prompt", ""
             )
-
-        system_prompt = self._filter_prompt_for_action(raw_system_prompt, action)
 
         debug_mode = self.settings.get("jupyter_ai_tutor.debug", False)
         prompt_file = None
@@ -140,32 +138,7 @@ class ExplainHandler(APIHandler):
         except StreamClosedError:
             pass
 
-    def _filter_prompt_for_action(self, raw_prompt: str, action: str) -> str:
-        """Filters system prompt sections based on action ('explain' vs 'review')."""
-        lines = raw_prompt.splitlines()
-        filtered_lines = []
-        current_mode = "common"
-        target_header = f"## Mode: {action.capitalize()}"
-        other_headers = [
-            "## Mode: Explain",
-            "## Mode: Review",
-        ]
 
-        for line in lines:
-            stripped = line.strip()
-            if stripped in other_headers:
-                if stripped == target_header:
-                    current_mode = "include"
-                else:
-                    current_mode = "exclude"
-                    continue
-            elif stripped.startswith("## ") and current_mode != "common":
-                current_mode = "common"
-
-            if current_mode != "exclude":
-                filtered_lines.append(line)
-
-        return "\n".join(filtered_lines).strip()
 
     def _find_tutor_md(self, notebook_path: str, server_root: str) -> str | None:
         """Walk up the directory tree from the notebook's directory toward the

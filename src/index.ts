@@ -19,7 +19,7 @@ import { codeCheckIcon, infoIcon } from '@jupyterlab/ui-components';
 
 import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
-import { computeDiff, decodeSolution, isContinuous } from './utils';
+import { decodeSolution, isContinuous } from './utils';
 
 const INFO_ICON_BASE_64 = btoa(infoIcon.svgstr);
 const CHECK_ICON_BASE_64 = btoa(codeCheckIcon.svgstr);
@@ -153,9 +153,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     // Keep the enabled state in sync when active cell or cell content changes.
     notebookTracker?.activeCellChanged.connect((_, cell) => {
-      if (cell) {
-        ensureInitialSource(cell);
-      }
       commands.notifyCommandChanged(CommandIDs.explainCode);
       commands.notifyCommandChanged(CommandIDs.reviewCode);
 
@@ -322,7 +319,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       formattedBody += `<source>\n${studentAnswer}\n</source>`;
 
       if (initialSource && typeof initialSource === 'string') {
-        formattedBody += `\n\n<diff>\n${computeDiff(initialSource, source)}\n</diff>`;
+        formattedBody += `\n\n<initial_source>\n${initialSource}\n</initial_source>`;
       }
       if (referenceSolution) {
         formattedBody += `\n\n<reference_solution>\n${referenceSolution}\n</reference_solution>`;
