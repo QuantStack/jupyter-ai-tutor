@@ -19,7 +19,7 @@ import { codeCheckIcon, infoIcon } from '@jupyterlab/ui-components';
 
 import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
-import { decodeSolution, isContinuous } from './utils';
+import { computeDiffSummary, decodeSolution, isContinuous } from './utils';
 
 const INFO_ICON_BASE_64 = btoa(infoIcon.svgstr);
 const CHECK_ICON_BASE_64 = btoa(codeCheckIcon.svgstr);
@@ -305,6 +305,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
       if (initialSource && typeof initialSource === 'string') {
         formattedBody += `\n\n<initial_source>\n${initialSource}\n</initial_source>`;
+        const diffSummary = computeDiffSummary(initialSource, source);
+        if (diffSummary) {
+          formattedBody += `\n\n<diff_summary>\n${diffSummary}\n</diff_summary>`;
+        }
       }
       if (referenceSolution) {
         formattedBody += `\n\n<reference_solution>\n${referenceSolution}\n</reference_solution>`;
