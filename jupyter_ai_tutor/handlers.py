@@ -18,6 +18,7 @@ class ExplainHandler(APIHandler):
             raise tornado.web.HTTPError(400, "Missing 'body' field in request")
 
         message_body = body["body"]
+        action = body.get("action", "explain")
 
         config_manager = self.settings.get("jupyternaut.config_manager")
         if not config_manager:
@@ -29,7 +30,7 @@ class ExplainHandler(APIHandler):
                 503,
                 "No chat model is configured. Set one in 'Settings > AI Settings'.",
             )
-        model_used_string = f"/* MODEL USED: {config_manager.chat_model} */\n\n"
+        model_used_string = f"/* MODEL USED: {config_manager.chat_model} (ACTION: {action}) */\n\n"
         
         self.set_header("Content-Type", "text/event-stream")
         self.set_header("Cache-Control", "no-cache")
@@ -62,8 +63,8 @@ class ExplainHandler(APIHandler):
             except Exception as e:
                 self.log.error(f"Failed to create debug directory {debug_dir}: {e}")
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            prompt_file = debug_dir / f"{timestamp}_jupyter_tutor_prompt.txt"
-            answer_file = debug_dir / f"{timestamp}_jupyter_tutor_answer.txt"
+            prompt_file = debug_dir / f"{timestamp}_jupyter_tutor_{action}_prompt.txt"
+            answer_file = debug_dir / f"{timestamp}_jupyter_tutor_{action}_answer.txt"
             try:
                 with prompt_file.open("w", encoding="utf-8") as f:
                     f.write(model_used_string)
@@ -136,6 +137,8 @@ class ExplainHandler(APIHandler):
             self.finish()
         except StreamClosedError:
             pass
+
+
 
     def _find_tutor_md(self, notebook_path: str, server_root: str) -> str | None:
         """Walk up the directory tree from the notebook's directory toward the

@@ -11,6 +11,7 @@ import { ServerConnection } from '@jupyterlab/services';
 export async function* streamExplanation(
   body: string,
   notebookPath?: string,
+  action?: 'explain' | 'review',
   signal?: AbortSignal
 ): AsyncGenerator<string, void, undefined> {
   const settings = ServerConnection.makeSettings();
@@ -20,7 +21,7 @@ export async function* streamExplanation(
     url,
     {
       method: 'POST',
-      body: JSON.stringify({ body, notebookPath }),
+      body: JSON.stringify({ body, notebookPath, action: action ?? 'explain' }),
       headers: { 'Content-Type': 'application/json' },
       signal
     },
