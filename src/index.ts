@@ -131,21 +131,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
     chatWidget.title.closable = true;
     app.shell.add(chatWidget, 'right');
 
-    function ensureInitialSource(cell: Cell): void {
-      if (
-        cell.model.type === 'code' &&
-        cell.model.getMetadata('initial_source') === undefined
-      ) {
-        cell.model.setMetadata('initial_source', cell.model.sharedModel.source);
-      }
-    }
-
-    notebookTracker?.widgetAdded.connect((_, panel) => {
-      panel.context.ready.then(() => {
-        panel.content.widgets.forEach(c => ensureInitialSource(c));
-      });
-    });
-
     let previousCell: Cell | null = null;
     const onContentChanged = () => {
       commands.notifyCommandChanged(CommandIDs.reviewCode);
@@ -351,7 +336,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
       icon: infoIcon,
       isEnabled: () => {
         const cell = notebookTracker?.activeCell;
-        return !!cell && cell.model.type === 'code';
+        if (!cell || cell.model.type !== 'code') {
+          return false;
+        }
+        return !!cell.model.sharedModel.source.trim();
       },
       isVisible: () => true,
       execute: async () => {
@@ -375,9 +363,12 @@ const plugin: JupyterFrontEndPlugin<void> = {
         if (!cell || cell.model.type !== 'code') {
           return false;
         }
+        const source = cell.model.sharedModel.source.trim();
+        if (!source) {
+          return false;
+        }
         const initialSource = cell.model.getMetadata('initial_source');
         if (typeof initialSource === 'string') {
-          const source = cell.model.sharedModel.source.trim();
           if (initialSource.trim() === source) {
             return false;
           }
