@@ -10,18 +10,19 @@ import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
-import { ICodeCellModel } from '@jupyterlab/cells';
+import { Cell, ICodeCellModel } from '@jupyterlab/cells';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
-import { infoIcon } from '@jupyterlab/ui-components';
+import { codeCheckIcon, infoIcon } from '@jupyterlab/ui-components';
 
 import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
-import { decodeSolution, isContinuous } from './utils';
+import { computeDiffSummary, decodeSolution, isContinuous } from './utils';
 
 const INFO_ICON_BASE_64 = btoa(infoIcon.svgstr);
+const CHECK_ICON_BASE_64 = btoa(codeCheckIcon.svgstr);
 
 // Matches ANSI escape sequences used for terminal colors in tracebacks.
 const ANSI_ESCAPE = new RegExp(
@@ -34,6 +35,7 @@ const ANSI_ESCAPE = new RegExp(
  */
 namespace CommandIDs {
   export const explainCode = 'jupyter-ai-tutor:explain-code';
+  export const reviewCode = 'jupyter-ai-tutor:review-code';
 }
 
 /**
@@ -118,7 +120,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       rmRegistry,
       translator: translator ?? undefined,
       welcomeMessage: trans.__(
-        `## Select a code cell and click **Explain Code** <img src="data:image/svg+xml;base64,${INFO_ICON_BASE_64}" /> to get started.`
+        `## Select a code cell and click **Explain Code** <img src="data:image/svg+xml;base64,${INFO_ICON_BASE_64}" /> or **Review Code** <img src="data:image/svg+xml;base64,${CHECK_ICON_BASE_64}" /> to get started.`
       ),
       attachmentOpenerRegistry,
       inputToolbarRegistry
@@ -129,9 +131,23 @@ const plugin: JupyterFrontEndPlugin<void> = {
     chatWidget.title.closable = true;
     app.shell.add(chatWidget, 'right');
 
-    // Keep the enabled state in sync when the active cell changes.
-    notebookTracker?.activeCellChanged.connect(() => {
+    let previousCell: Cell | null = null;
+    const onContentChanged = () => {
+      commands.notifyCommandChanged(CommandIDs.reviewCode);
+    };
+
+    // Keep the enabled state in sync when active cell or cell content changes.
+    notebookTracker?.activeCellChanged.connect((_, cell) => {
       commands.notifyCommandChanged(CommandIDs.explainCode);
+      commands.notifyCommandChanged(CommandIDs.reviewCode);
+
+      if (previousCell && !previousCell.isDisposed) {
+        previousCell.model.contentChanged.disconnect(onContentChanged);
+      }
+      if (cell) {
+        cell.model.contentChanged.connect(onContentChanged);
+      }
+      previousCell = cell;
     });
 
     // Listen for writers change to display the stop button.
@@ -160,169 +176,212 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     tutorModel.messagesUpdated.connect(messagesChanged);
 
-    // the command to ask for explanation.
+    async function executeAction(action: 'explain' | 'review') {
+      const cell = notebookTracker?.activeCell;
+      if (!cell || cell.model.type !== 'code') return;
+
+      const source = cell.model.sharedModel.source.trim();
+      if (!source) return;
+
+      const language =
+        notebookTracker?.currentWidget?.model?.defaultKernelLanguage ?? '';
+
+      // Collect the first error output from the cell, if any.
+      const codeModel = cell.model as ICodeCellModel;
+      const outputs = codeModel.outputs;
+      let errorSection = '';
+      let jsonError: {
+        ename: string;
+        evalue: string;
+        traceback: string[];
+      } | null = null;
+
+      for (let i = 0; i < outputs.length; i++) {
+        const output = outputs.get(i);
+        if (output.type === 'error') {
+          const json = output.toJSON() as {
+            ename: string;
+            evalue: string;
+            traceback: string[];
+          };
+          jsonError = json;
+          const traceback = json.traceback
+            .map(line => line.replace(ANSI_ESCAPE, ''))
+            .join('\n');
+          errorSection =
+            `\n\n**Error:**\n\`\`\`\n${json.ename}: ${json.evalue}\n` +
+            `${traceback}\n\`\`\``;
+          break;
+        }
+      }
+
+      // Collect preceding cells context.
+      const notebook = notebookTracker?.currentWidget?.content;
+      const notebookPath = notebookTracker?.currentWidget?.context.path ?? '';
+      let studentContext = '';
+      let attachment: INotebookAttachment | undefined;
+
+      if (notebook) {
+        const activeCellIndex = notebook.activeCellIndex;
+        let lastMdIdx = -1;
+
+        // Find the index of the most recent markdown cell above the active cell
+        for (let i = activeCellIndex - 1; i >= 0; i--) {
+          const precedingCell = notebook.widgets[i];
+          if (precedingCell.model.type === 'markdown') {
+            lastMdIdx = i;
+            break;
+          }
+        }
+
+        // Gather all cells from that markdown cell up to activeCellIndex - 1
+        const startIdx = lastMdIdx !== -1 ? lastMdIdx : 0;
+
+        const contextCells = [];
+        for (let i = startIdx; i < activeCellIndex; i++) {
+          contextCells.push(notebook.widgets[i]);
+        }
+
+        let contextStr = '';
+        const cellsForAttachment = [];
+
+        for (const cCell of contextCells) {
+          const cSource = cCell.model.sharedModel.source.trim();
+          if (!cSource) {
+            continue;
+          }
+
+          cellsForAttachment.push({
+            id: cCell.model.id,
+            input_type: cCell.model.type as 'raw' | 'markdown' | 'code'
+          });
+
+          if (cCell.model.type === 'markdown') {
+            contextStr += `${cSource}\n\n`;
+          } else if (cCell.model.type === 'code') {
+            contextStr += `Preceding Code:\n\`\`\`${language}\n${cSource}\n\`\`\`\n\n`;
+          }
+        }
+
+        studentContext = contextStr.trim();
+
+        if (cellsForAttachment.length > 0) {
+          attachment = {
+            type: 'notebook',
+            value: notebookPath,
+            cells: cellsForAttachment
+          };
+        }
+      }
+      // Format student answer
+      let studentAnswer = source;
+      if (jsonError) {
+        const traceback = jsonError.traceback
+          .map(line => line.replace(ANSI_ESCAPE, ''))
+          .join('\n');
+        studentAnswer += `\n\nError:\n${jsonError.ename}: ${jsonError.evalue}\n${traceback}`;
+      }
+
+      // Retrieve and decode reference_solution from metadata
+      const rawSolution = cell.model.getMetadata('reference_solution');
+      const referenceSolution =
+        typeof rawSolution === 'string' ? decodeSolution(rawSolution) : '';
+
+      // Retrieve evaluation_criteria from metadata
+      const evaluationCriteria = cell.model.getMetadata('evaluation_criteria');
+
+      // Retrieve initial_source from metadata
+      const initialSource = cell.model.getMetadata('initial_source');
+
+      const actionTitle = action === 'review' ? 'Review code' : 'Explain code';
+      const question = errorSection ? `${actionTitle} and error` : actionTitle;
+      const bodyContent = `${question}\n\n\`\`\`${language}\n${source}\n\`\`\`${errorSection}\n`;
+
+      let formattedBody = `<action>${action}</action>\n\n`;
+      if (studentContext) {
+        formattedBody += `<context>\n${studentContext}\n</context>\n\n`;
+      }
+      formattedBody += `<source>\n${studentAnswer}\n</source>`;
+
+      if (initialSource && typeof initialSource === 'string') {
+        formattedBody += `\n\n<initial_source>\n${initialSource}\n</initial_source>`;
+        const diffSummary = computeDiffSummary(initialSource, source);
+        if (diffSummary) {
+          formattedBody += `\n\n<diff_summary>\n${diffSummary}\n</diff_summary>`;
+        }
+      }
+      if (referenceSolution) {
+        formattedBody += `\n\n<reference_solution>\n${referenceSolution}\n</reference_solution>`;
+      }
+      if (evaluationCriteria && typeof evaluationCriteria === 'string') {
+        formattedBody += `\n\n<evaluation_criteria>\n${evaluationCriteria}\n</evaluation_criteria>`;
+      }
+
+      formattedBody += '\n';
+
+      if (!chatWidget.isAttached) {
+        app.shell.add(chatWidget, 'right');
+      }
+      app.shell.activateById(chatWidget.id);
+
+      await tutorModel.sendMessageToAI({
+        body: bodyContent,
+        formattedBody: formattedBody,
+        notebookPath,
+        action,
+        attachments: attachment ? [attachment] : undefined
+      });
+    }
+
+    // Register Explain Code command
     commands.addCommand(CommandIDs.explainCode, {
       label: trans.__('Explain Code'),
       caption: trans.__('Send cell content to AI tutor for explanation'),
       icon: infoIcon,
       isEnabled: () => {
         const cell = notebookTracker?.activeCell;
-        return !!cell && cell.model.type === 'code';
+        if (!cell || cell.model.type !== 'code') {
+          return false;
+        }
+        return !!cell.model.sharedModel.source.trim();
       },
       isVisible: () => true,
       execute: async () => {
+        await executeAction('explain');
+      },
+      describedBy: {
+        args: {
+          type: 'object',
+          properties: {}
+        }
+      }
+    });
+
+    // Register Review Code command
+    commands.addCommand(CommandIDs.reviewCode, {
+      label: trans.__('Review Code'),
+      caption: trans.__('Send cell content to AI tutor for review'),
+      icon: codeCheckIcon,
+      isEnabled: () => {
         const cell = notebookTracker?.activeCell;
-        if (!cell || cell.model.type !== 'code') return;
-
+        if (!cell || cell.model.type !== 'code') {
+          return false;
+        }
         const source = cell.model.sharedModel.source.trim();
-        if (!source) return;
-
-        const language =
-          notebookTracker?.currentWidget?.model?.defaultKernelLanguage ?? '';
-
-        // Collect the first error output from the cell, if any.
-        const codeModel = cell.model as ICodeCellModel;
-        const outputs = codeModel.outputs;
-        let errorSection = '';
-        let jsonError: {
-          ename: string;
-          evalue: string;
-          traceback: string[];
-        } | null = null;
-
-        for (let i = 0; i < outputs.length; i++) {
-          const output = outputs.get(i);
-          if (output.type === 'error') {
-            const json = output.toJSON() as {
-              ename: string;
-              evalue: string;
-              traceback: string[];
-            };
-            jsonError = json;
-            const traceback = json.traceback
-              .map(line => line.replace(ANSI_ESCAPE, ''))
-              .join('\n');
-            errorSection =
-              `\n\n**Error:**\n\`\`\`\n${json.ename}: ${json.evalue}\n` +
-              `${traceback}\n\`\`\``;
-            break;
-          }
+        if (!source) {
+          return false;
         }
-
-        // Collect preceding cells context.
-        const notebook = notebookTracker?.currentWidget?.content;
-        const notebookPath = notebookTracker?.currentWidget?.context.path ?? '';
-        let studentContext = '';
-        let attachment: INotebookAttachment | undefined;
-
-        if (notebook) {
-          const activeCellIndex = notebook.activeCellIndex;
-          let lastMdIdx = -1;
-
-          // Find the index of the most recent markdown cell above the active cell
-          for (let i = activeCellIndex - 1; i >= 0; i--) {
-            const precedingCell = notebook.widgets[i];
-            if (precedingCell.model.type === 'markdown') {
-              lastMdIdx = i;
-              break;
-            }
-          }
-
-          // Gather all cells from that markdown cell up to activeCellIndex - 1
-          const startIdx = lastMdIdx !== -1 ? lastMdIdx : 0;
-
-          const contextCells = [];
-          for (let i = startIdx; i < activeCellIndex; i++) {
-            contextCells.push(notebook.widgets[i]);
-          }
-
-          let contextStr = '';
-          const cellsForAttachment = [];
-
-          for (const cCell of contextCells) {
-            const cSource = cCell.model.sharedModel.source.trim();
-            if (!cSource) {
-              continue;
-            }
-
-            cellsForAttachment.push({
-              id: cCell.model.id,
-              input_type: cCell.model.type as 'raw' | 'markdown' | 'code'
-            });
-
-            if (cCell.model.type === 'markdown') {
-              contextStr += `${cSource}\n\n`;
-            } else if (cCell.model.type === 'code') {
-              contextStr += `Preceding Code:\n\`\`\`${language}\n${cSource}\n\`\`\`\n\n`;
-            }
-          }
-
-          studentContext = contextStr.trim();
-
-          if (cellsForAttachment.length > 0) {
-            attachment = {
-              type: 'notebook',
-              value: notebookPath,
-              cells: cellsForAttachment
-            };
-          }
-        }
-        // Format student answer
-        let studentAnswer = source;
-        if (jsonError) {
-          const traceback = jsonError.traceback
-            .map(line => line.replace(ANSI_ESCAPE, ''))
-            .join('\n');
-          studentAnswer += `\n\nError:\n${jsonError.ename}: ${jsonError.evalue}\n${traceback}`;
-        }
-
-        // Retrieve and decode reference_solution from metadata
-        const rawSolution = cell.model.getMetadata('reference_solution');
-        const referenceSolution =
-          typeof rawSolution === 'string' ? decodeSolution(rawSolution) : '';
-
-        // Retrieve evaluation_criteria from metadata
-        const evaluationCriteria = cell.model.getMetadata(
-          'evaluation_criteria'
-        );
-
-        // Retrieve initial_source from metadata
         const initialSource = cell.model.getMetadata('initial_source');
-
-        const question = errorSection
-          ? 'Explain code and error'
-          : 'Explain code';
-        const bodyContent = `${question}\n\n\`\`\`${language}\n${source}\n\`\`\`${errorSection}\n`;
-
-        let formattedBody = '';
-        if (studentContext) {
-          formattedBody += `<context>\n${studentContext}\n</context>\n\n`;
+        if (typeof initialSource === 'string') {
+          if (initialSource.trim() === source) {
+            return false;
+          }
         }
-        formattedBody += `<source>\n${studentAnswer}\n</source>`;
-
-        if (initialSource && typeof initialSource === 'string') {
-          formattedBody += `\n\n<initial_source>\n${initialSource}\n</initial_source>`;
-        }
-        if (referenceSolution) {
-          formattedBody += `\n\n<reference_solution>\n${referenceSolution}\n</reference_solution>`;
-        }
-        if (evaluationCriteria && typeof evaluationCriteria === 'string') {
-          formattedBody += `\n\n<evaluation_criteria>\n${evaluationCriteria}\n</evaluation_criteria>`;
-        }
-
-        formattedBody += '\n';
-
-        if (!chatWidget.isAttached) {
-          app.shell.add(chatWidget, 'right');
-        }
-        app.shell.activateById(chatWidget.id);
-
-        await tutorModel.sendMessageToAI({
-          body: bodyContent,
-          formattedBody: formattedBody,
-          notebookPath,
-          attachments: attachment ? [attachment] : undefined
-        });
+        return true;
+      },
+      isVisible: () => true,
+      execute: async () => {
+        await executeAction('review');
       },
       describedBy: {
         args: {
