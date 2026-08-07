@@ -297,7 +297,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       const question = errorSection ? `${actionTitle} and error` : actionTitle;
       const bodyContent = `${question}\n\n\`\`\`${language}\n${source}\n\`\`\`${errorSection}\n`;
 
-      let formattedBody = '';
+      let formattedBody = `<action>${action}</action>\n\n`;
       if (studentContext) {
         formattedBody += `<context>\n${studentContext}\n</context>\n\n`;
       }
