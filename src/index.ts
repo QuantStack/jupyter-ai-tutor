@@ -10,6 +10,7 @@ import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
+import { ICommandPalette, Notification } from '@jupyterlab/apputils';
 import { Cell, ICodeCellModel } from '@jupyterlab/cells';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
@@ -36,6 +37,8 @@ const ANSI_ESCAPE = new RegExp(
 namespace CommandIDs {
   export const explainCode = 'jupyter-ai-tutor:explain-code';
   export const reviewCode = 'jupyter-ai-tutor:review-code';
+  export const setInitialSource = 'jupyter-ai-tutor:set-initial-source';
+  export const setInitialSourceAll = 'jupyter-ai-tutor:set-initial-source-all';
 }
 
 /**
@@ -47,13 +50,14 @@ const plugin: JupyterFrontEndPlugin<void> = {
     'A JupyterLab extension to add an AI-powered tutor assistant to Notebooks.',
   autoStart: true,
   requires: [IRenderMimeRegistry],
-  optional: [ISettingRegistry, INotebookTracker, ITranslator],
+  optional: [ISettingRegistry, INotebookTracker, ITranslator, ICommandPalette],
   activate: (
     app: JupyterFrontEnd,
     rmRegistry: IRenderMimeRegistry,
     settingRegistry: ISettingRegistry | null,
     notebookTracker: INotebookTracker | null,
-    translator: ITranslator | null
+    translator: ITranslator | null,
+    palette: ICommandPalette | null
   ) => {
     const { commands } = app;
     const trans = (translator ?? nullTranslator).load('jupyterlab');
@@ -386,6 +390,70 @@ const plugin: JupyterFrontEndPlugin<void> = {
         }
       }
     });
+
+    // Register Set Initial Source command for active cell
+    commands.addCommand(CommandIDs.setInitialSource, {
+      label: trans.__('Set Initial Source for Cell'),
+      caption: trans.__(
+        'Save current cell content as initial_source metadata'
+      ),
+      isEnabled: () => {
+        const cell = notebookTracker?.activeCell;
+        return !!cell && cell.model.type === 'code';
+      },
+      isVisible: () => true,
+      execute: () => {
+        const cell = notebookTracker?.activeCell;
+        if (cell && cell.model.type === 'code') {
+          cell.model.setMetadata(
+            'initial_source',
+            cell.model.sharedModel.source
+          );
+          commands.notifyCommandChanged(CommandIDs.reviewCode);
+          Notification.success(
+            trans.__('Set initial_source metadata for active cell.')
+          );
+        }
+      }
+    });
+
+    // Register Set Initial Source for All Cells command
+    commands.addCommand(CommandIDs.setInitialSourceAll, {
+      label: trans.__('Set Initial Source for All Cells'),
+      caption: trans.__(
+        'Save current content of all code cells as initial_source metadata'
+      ),
+      isEnabled: () => {
+        const notebook = notebookTracker?.currentWidget?.content;
+        return !!notebook && notebook.widgets.length > 0;
+      },
+      isVisible: () => true,
+      execute: () => {
+        const notebook = notebookTracker?.currentWidget?.content;
+        if (notebook) {
+          let count = 0;
+          notebook.widgets.forEach(cell => {
+            if (cell.model.type === 'code') {
+              cell.model.setMetadata(
+                'initial_source',
+                cell.model.sharedModel.source
+              );
+              count++;
+            }
+          });
+          commands.notifyCommandChanged(CommandIDs.reviewCode);
+          Notification.success(
+            trans.__(`Set initial_source metadata for ${count} code cell(s).`)
+          );
+        }
+      }
+    });
+
+    if (palette) {
+      const category = trans.__('Tutor');
+      palette.addItem({ command: CommandIDs.setInitialSource, category });
+      palette.addItem({ command: CommandIDs.setInitialSourceAll, category });
+    }
 
     if (settingRegistry) {
       settingRegistry
