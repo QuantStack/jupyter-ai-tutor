@@ -6,6 +6,11 @@
         "name": "jupyter-ai-tutor:explain-code",
         "command": "jupyter-ai-tutor:explain-code",
         "rank": 10
+      },
+      {
+        "name": "jupyter-ai-tutor:review-code",
+        "command": "jupyter-ai-tutor:review-code",
+        "rank": 11
       }
     ]
   },
