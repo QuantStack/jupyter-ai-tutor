@@ -138,8 +138,6 @@ class ExplainHandler(APIHandler):
         except StreamClosedError:
             pass
 
-
-
     def _find_tutor_md(self, notebook_path: str, server_root: str) -> str | None:
         """Walk up the directory tree from the notebook's directory toward the
         server root, returning the content of the first TUTOR.md found, or None."""
