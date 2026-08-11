@@ -2,6 +2,30 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 0.3.0
+
+([Full Changelog](https://github.com/QuantStack/jupyter-ai-tutor/compare/v0.2.0...c1faafce63ccac83ee9f13d8fa16cb8ac5ed105b))
+
+### Enhancements made
+
+- Add review code command [#28](https://github.com/QuantStack/jupyter-ai-tutor/pull/28) ([@Yahiewi](https://github.com/Yahiewi), [@brichet](https://github.com/brichet))
+- Add initial_source metadata tag [#27](https://github.com/QuantStack/jupyter-ai-tutor/pull/27) ([@Yahiewi](https://github.com/Yahiewi), [@brichet](https://github.com/brichet))
+
+### Maintenance and upkeep improvements
+
+- Remove redundant notebook [#30](https://github.com/QuantStack/jupyter-ai-tutor/pull/30) ([@Yahiewi](https://github.com/Yahiewi), [@brichet](https://github.com/brichet))
+
+### Contributors to this release
+
+The following people contributed discussions, new ideas, code and documentation contributions, and review.
+See [our definition of contributors](https://github-activity.readthedocs.io/en/latest/use/#how-does-this-tool-define-contributions-in-the-reports).
+
+([GitHub contributors page for this release](https://github.com/QuantStack/jupyter-ai-tutor/graphs/contributors?from=2026-07-10&to=2026-08-11&type=c))
+
+@brichet ([activity](https://github.com/search?q=repo%3AQuantStack%2Fjupyter-ai-tutor+involves%3Abrichet+updated%3A2026-07-10..2026-08-11&type=Issues)) | @Yahiewi ([activity](https://github.com/search?q=repo%3AQuantStack%2Fjupyter-ai-tutor+involves%3AYahiewi+updated%3A2026-07-10..2026-08-11&type=Issues))
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 0.2.0
 
 ([Full Changelog](https://github.com/QuantStack/jupyter-ai-tutor/compare/v0.1.2...8bbca61ffdf2e3aac82ab43fa4f6c9ce5d312978))
@@ -36,8 +60,6 @@ See [our definition of contributors](https://github-activity.readthedocs.io/en/l
 ([GitHub contributors page for this release](https://github.com/QuantStack/jupyter-ai-tutor/graphs/contributors?from=2026-06-17&to=2026-07-10&type=c))
 
 @brichet ([activity](https://github.com/search?q=repo%3AQuantStack%2Fjupyter-ai-tutor+involves%3Abrichet+updated%3A2026-06-17..2026-07-10&type=Issues)) | @Yahiewi ([activity](https://github.com/search?q=repo%3AQuantStack%2Fjupyter-ai-tutor+involves%3AYahiewi+updated%3A2026-06-17..2026-07-10&type=Issues))
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## 0.1.2
 
