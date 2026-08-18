@@ -7,9 +7,31 @@ A JupyterLab extension to add an AI-powered tutor assistant to Notebooks.
 
 [a screencast showing an example with jupyter-ai-tutor](https://github.com/user-attachments/assets/0f7da09e-fa19-4655-9825-09fdca764859)
 
-It currently relies on [jupyter-ai-jupyternaut](https://github.com/jupyter-ai-contrib/jupyter-ai-jupyternaut) for the agent, it needs to be installed (`pip install jupyter_ai_tutor[server]`).
+It currently relies on [jupyter-ai-jupyternaut](https://github.com/jupyter-ai-contrib/jupyter-ai-jupyternaut) (<0.1) for the agent, it needs to be installed (`pip install jupyter_ai_tutor[server]`).
 
 Once Jupyterlab started, the model must be configured via the menu `Settings>Jupyternaut settings` (model and API key).
+It is also possible to configure your custom model directly via the JupyterNaut configuration file
+`.local/share/jupyter/jupyter_ai/config.json`, for example
+```
+{
+    "model_provider_id": "openai/qwen-3.6-35b-instruct",
+    "embeddings_provider_id": null,
+    "completions_model_provider_id": null,
+    "api_keys": {},
+    "send_with_shift_enter": false,
+    "fields": {
+        "openai/qwen-3.6-35b-instruct": {
+            "api_base": "<your custom API base>"
+        }
+    },
+    "embeddings_fields": {},
+    "completions_fields": {}
+}
+```
+The related secret (`OPENAI_API_KEY`  in that case) should be stored in a `.env` file at the jupyter lab root:
+```
+OPENAI_API_KEY="<my openai key>"
+```
 
 See Jupyternaut [documentation](https://jupyter-ai.readthedocs.io/en/v3/users/jupyternaut/index.html#model-selection) for details about setting up the agent.
 
