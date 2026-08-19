@@ -9,30 +9,8 @@ A JupyterLab extension to add an AI-powered tutor assistant to Notebooks.
 
 It currently relies on [jupyter-ai-jupyternaut](https://github.com/jupyter-ai-contrib/jupyter-ai-jupyternaut) (<0.1) for the agent, it needs to be installed (`pip install jupyter_ai_tutor[server]`).
 
-Once Jupyterlab started, the model must be configured via the menu `Settings>Jupyternaut settings` (model and API key).
-It is also possible to configure your custom model directly via the JupyterNaut configuration file
-`.local/share/jupyter/jupyter_ai/config.json`, for example
-```
-{
-    "model_provider_id": "openai/qwen-3.6-35b-instruct",
-    "embeddings_provider_id": null,
-    "completions_model_provider_id": null,
-    "api_keys": {},
-    "send_with_shift_enter": false,
-    "fields": {
-        "openai/qwen-3.6-35b-instruct": {
-            "api_base": "<your custom API base>"
-        }
-    },
-    "embeddings_fields": {},
-    "completions_fields": {}
-}
-```
-The related secret (`OPENAI_API_KEY`  in that case) should be stored in a `.env` file at the jupyter lab root:
-```
-OPENAI_API_KEY="<my openai key>"
-```
-
+Once Jupyterlab started, the model must be configured via the menu `Settings>Jupyternaut settings` (model and API key)
+or its [configuration file](#jupyternaut).
 See Jupyternaut [documentation](https://jupyter-ai.readthedocs.io/en/v3/users/jupyternaut/index.html#model-selection) for details about setting up the agent.
 
 ## How it works
@@ -72,6 +50,32 @@ The default model and API key used with Jupyternaut agent can be setup via `jupy
 ```python
 c.AiExtension.initial_language_model=mistral/devstral-latest
 c.AiExtension.default_api_keys={'MISTRAL_API_KEY': '***'}
+```
+
+It is also possible to configure your custom model directly via the JupyterNaut configuration file
+`~/.local/share/jupyter/jupyter_ai/config.json`, for example
+
+```
+{
+    "model_provider_id": "openai/qwen-3.6-35b-instruct",
+    "embeddings_provider_id": null,
+    "completions_model_provider_id": null,
+    "api_keys": {},
+    "send_with_shift_enter": false,
+    "fields": {
+        "openai/qwen-3.6-35b-instruct": {
+            "api_base": "<your custom API base>"
+        }
+    },
+    "embeddings_fields": {},
+    "completions_fields": {}
+}
+```
+
+The related secret (`OPENAI_API_KEY` in that case) should be stored in a `.env` file at the jupyter lab root:
+
+```
+OPENAI_API_KEY="<my openai key>"
 ```
 
 ## Requirements
