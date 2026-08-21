@@ -28,8 +28,15 @@ class ExplainHandler(APIHandler):
         chat_model = config_manager.chat_model
         chat_model_params = config_manager.chat_model_args
         if not chat_model:
-            chat_model = config_manager.custom_models[0].model_id
-            chat_model_params = config_manager.custom_models[0].params
+            if config_manager.model_provider_id is not None:
+                # If `initial_language_model` is set take the corresponding custom model
+                selected = config_manager.model_provider_id
+                chat_model = config_manager.get_custom_model(selected)
+                chat_model_params = config_manager.get_custom_model(selected).params
+            else:
+                # If `initial_language_model` is not set take the first custom model
+                chat_model = config_manager.custom_models[0].model_id
+                chat_model_params = config_manager.custom_models[0].params
             if not chat_model:
                 raise tornado.web.HTTPError(
                     503,
