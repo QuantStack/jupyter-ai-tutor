@@ -25,12 +25,24 @@ class ExplainHandler(APIHandler):
             raise tornado.web.HTTPError(
                 503, "Jupyternaut config manager is not available"
             )
-        if not config_manager.chat_model:
-            raise tornado.web.HTTPError(
-                503,
-                "No chat model is configured. Set one in 'Settings > AI Settings'.",
-            )
-        model_used_string = f"/* MODEL USED: {config_manager.chat_model} (ACTION: {action}) */\n\n"
+        chat_model = config_manager.chat_model
+        chat_model_params = config_manager.chat_model_args
+        if not chat_model:
+            if config_manager.model_provider_id is not None:
+                # If `initial_language_model` is set take the corresponding custom model
+                selected = config_manager.model_provider_id
+                chat_model = config_manager.get_custom_model(selected)
+                chat_model_params = config_manager.get_custom_model(selected).params
+            else:
+                # If `initial_language_model` is not set take the first custom model
+                chat_model = config_manager.custom_models[0].model_id
+                chat_model_params = config_manager.custom_models[0].params
+            if not chat_model:
+                raise tornado.web.HTTPError(
+                    503,
+                    "No chat model is configured. Set one in 'Settings > Jupyternaut settings'.",
+                )
+        model_used_string = f"/* MODEL USED: {chat_model} (ACTION: {action}) */\n\n"
         
         self.set_header("Content-Type", "text/event-stream")
         self.set_header("Cache-Control", "no-cache")
@@ -80,8 +92,8 @@ class ExplainHandler(APIHandler):
             from langchain_core.messages import HumanMessage, SystemMessage
 
             model = ChatLiteLLM(
-                **config_manager.chat_model_args,
-                model=config_manager.chat_model,
+                **chat_model_params,
+                model=chat_model,
                 streaming=True,
             )
 
