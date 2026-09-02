@@ -2,6 +2,29 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 0.3.1
+
+([Full Changelog](https://github.com/QuantStack/jupyter-ai-tutor/compare/v0.3.0...fe1546348dc402d5cab4b1c2050b9de272a6dc39))
+
+### Maintenance and upkeep improvements
+
+- Fix compatibility with soon to be released jupyternaut 0.1.x [#38](https://github.com/QuantStack/jupyter-ai-tutor/pull/38) ([@cmarmo](https://github.com/cmarmo), [@brichet](https://github.com/brichet))
+
+### Documentation improvements
+
+- Add documentation about custom model configuration [#36](https://github.com/QuantStack/jupyter-ai-tutor/pull/36) ([@cmarmo](https://github.com/cmarmo), [@brichet](https://github.com/brichet))
+
+### Contributors to this release
+
+The following people contributed discussions, new ideas, code and documentation contributions, and review.
+See [our definition of contributors](https://github-activity.readthedocs.io/en/latest/use/#how-does-this-tool-define-contributions-in-the-reports).
+
+([GitHub contributors page for this release](https://github.com/QuantStack/jupyter-ai-tutor/graphs/contributors?from=2026-08-11&to=2026-09-02&type=c))
+
+@brichet ([activity](https://github.com/search?q=repo%3AQuantStack%2Fjupyter-ai-tutor+involves%3Abrichet+updated%3A2026-08-11..2026-09-02&type=Issues)) | @cmarmo ([activity](https://github.com/search?q=repo%3AQuantStack%2Fjupyter-ai-tutor+involves%3Acmarmo+updated%3A2026-08-11..2026-09-02&type=Issues))
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 0.3.0
 
 ([Full Changelog](https://github.com/QuantStack/jupyter-ai-tutor/compare/v0.2.0...c1faafce63ccac83ee9f13d8fa16cb8ac5ed105b))
@@ -23,8 +46,6 @@ See [our definition of contributors](https://github-activity.readthedocs.io/en/l
 ([GitHub contributors page for this release](https://github.com/QuantStack/jupyter-ai-tutor/graphs/contributors?from=2026-07-10&to=2026-08-11&type=c))
 
 @brichet ([activity](https://github.com/search?q=repo%3AQuantStack%2Fjupyter-ai-tutor+involves%3Abrichet+updated%3A2026-07-10..2026-08-11&type=Issues)) | @Yahiewi ([activity](https://github.com/search?q=repo%3AQuantStack%2Fjupyter-ai-tutor+involves%3AYahiewi+updated%3A2026-07-10..2026-08-11&type=Issues))
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## 0.2.0
 

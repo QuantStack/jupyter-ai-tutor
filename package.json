@@ -1,6 +1,6 @@
 {
     "name": "jupyter-ai-tutor",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "A JupyterLab extension to add an AI-powered tutor assistant to Notebooks.",
     "keywords": [
         "jupyter",
