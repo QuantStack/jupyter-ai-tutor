@@ -120,7 +120,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       rmRegistry,
       translator: translator ?? undefined,
       welcomeMessage: trans.__(
-        `## Select a code cell and click **Explain Code** <img src="data:image/svg+xml;base64,${INFO_ICON_BASE_64}" /> or **Review Code** <img src="data:image/svg+xml;base64,${CHECK_ICON_BASE_64}" /> to get started.`
+        `Select a code cell and click **Explain Code** <img src="data:image/svg+xml;base64,${INFO_ICON_BASE_64}" /> or **Review Code** <img src="data:image/svg+xml;base64,${CHECK_ICON_BASE_64}" /> to get started.`
       ),
       attachmentOpenerRegistry,
       inputToolbarRegistry
