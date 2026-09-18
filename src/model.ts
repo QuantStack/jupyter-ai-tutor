@@ -48,27 +48,28 @@ export class TutorChatModel extends AbstractChatModel {
   constructor(options?: IChatModel.IOptions) {
     super(options);
     this.name = 'Tutor';
-    this.setReady();
+    this.setReady(UUID.uuid4());
   }
 
   get user(): IUser {
     return { username: 'user', display_name: 'You' };
   }
 
-  sendMessage(message: ITutorNewMessage): void {
+  sendMessage(message: ITutorNewMessage): string {
     const userMsg: IMessageContent = {
       type: 'msg',
       id: UUID.uuid4(),
       time: Date.now() / 1000,
-      body: message.body,
+      body: message.body ?? '',
       sender: this.user,
       attachments: message.attachments
     };
     this.messageAdded(userMsg);
+    return userMsg.id;
   }
 
   async sendMessageToAI(message: ITutorNewMessage): Promise<void> {
-    if (!message.body.trim()) return;
+    if (!message.body?.trim()) return;
 
     this.sendMessage(message);
 
@@ -114,6 +115,7 @@ export class TutorChatModel extends AbstractChatModel {
   createChatContext(): ITutorChatContext {
     return {
       name: this.name,
+      id: this.id ?? '',
       user: this.user,
       users: [],
       messages: this.messages,
