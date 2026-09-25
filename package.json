@@ -54,7 +54,7 @@
         "watch:labextension": "jupyter-builder watch ."
     },
     "dependencies": {
-        "@jupyter/chat": "^0.22.1",
+        "@jupyter/chat": "^0.25.1",
         "@jupyterlab/application": "^4.0.0",
         "@jupyterlab/cells": "^4.0.0",
         "@jupyterlab/coreutils": "^6.0.0",
@@ -68,7 +68,7 @@
     },
     "devDependencies": {
         "@eslint/js": "^9.0.0",
-        "@jupyter/builder": "^1.0.0",
+        "@jupyter/builder": "^1.2.0",
         "@jupyter/eslint-plugin": "^0.0.5",
         "@jupyterlab/testutils": "^4.0.0",
         "@types/jest": "^29.2.0",
