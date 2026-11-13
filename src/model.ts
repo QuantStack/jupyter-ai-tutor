@@ -12,13 +12,13 @@ import { UUID } from '@lumino/coreutils';
 
 import { fetchDefaultSystemPrompt, streamExplanation } from './api';
 import { AI_AVATAR } from './icons';
-import { findTutorMd } from './tutorMd';
+import { findTutorMd } from './tutor-md';
 
 export interface ITutorNewMessage extends INewMessage {
   attachments?: IAttachment[];
   notebookPath?: string;
   formattedBody?: string;
-  action?: 'explain' | 'review';
+  action?: string;
 }
 
 export const TUTOR_USER: IUser = {

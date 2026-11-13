@@ -33,3 +33,9 @@
   background-color: var(--jp-layout-color1);
   box-shadow: var(--jp-elevation-z2);
 }
+
+/* Display the tutor actions side by side in the cell toolbar */
+.jp-ai-tutor-ActionsToolbar {
+  display: flex;
+  flex-direction: row;
+}

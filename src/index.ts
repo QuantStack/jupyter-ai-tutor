@@ -17,13 +17,14 @@ import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
 import { codeCheckIcon, infoIcon } from '@jupyterlab/ui-components';
+import { IToolbarWidgetRegistry } from '@jupyterlab/apputils';
+import { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 
 import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
+import { ITutorAction } from './types';
 import { decodeSolution, isContinuous } from './utils';
-
-const INFO_ICON_BASE_64 = btoa(infoIcon.svgstr);
-const CHECK_ICON_BASE_64 = btoa(codeCheckIcon.svgstr);
+import { ActionsToolbar } from './widgets/actions-toolbar';
 
 // Matches ANSI escape sequences used for terminal colors in tracebacks.
 const ANSI_ESCAPE = new RegExp(
@@ -37,11 +38,34 @@ const ANSI_ESCAPE = new RegExp(
 const PAGE_CONFIG_DISCOVER_TUTOR_MD = 'jupyterAiTutorDiscoverTutorMd';
 
 /**
+ * The default tutor actions.
+ */
+const DEFAULT_ACTIONS: ReadonlyArray<ITutorAction> = [
+  {
+    id: 'explain',
+    label: 'Explain Code',
+    caption: 'Send cell content to AI tutor for explanation',
+    icon: infoIcon
+  },
+  {
+    id: 'review',
+    label: 'Review Code',
+    caption: 'Send cell content to AI tutor for review',
+    icon: codeCheckIcon,
+    requiresChange: true
+  }
+];
+
+/**
+ * Name of the cell toolbar item displaying the tutor actions.
+ */
+const ACTIONS_TOOLBAR_ITEM = 'jupyter-ai-tutor:actions';
+
+/**
  * Command IDs used by the jupyter-ai-tutor extension.
  */
 namespace CommandIDs {
-  export const explainCode = 'jupyter-ai-tutor:explain-code';
-  export const reviewCode = 'jupyter-ai-tutor:review-code';
+  export const runAction = 'jupyter-ai-tutor:run-action';
 }
 
 /**
@@ -52,17 +76,27 @@ const plugin: JupyterFrontEndPlugin<void> = {
   description:
     'A JupyterLab extension to add an AI-powered tutor assistant to Notebooks.',
   autoStart: true,
-  requires: [IRenderMimeRegistry],
+  requires: [IRenderMimeRegistry, IToolbarWidgetRegistry],
   optional: [ISettingRegistry, INotebookTracker, ITranslator],
   activate: (
     app: JupyterFrontEnd,
     rmRegistry: IRenderMimeRegistry,
+    toolbarRegistry: IToolbarWidgetRegistry,
     settingRegistry: ISettingRegistry | null,
     notebookTracker: INotebookTracker | null,
     translator: ITranslator | null
   ) => {
     const { commands } = app;
     const trans = (translator ?? nullTranslator).load('jupyterlab');
+    const actions = DEFAULT_ACTIONS;
+
+    /**
+     * Returns the tutor action matching the command arguments, if any.
+     */
+    const getAction = (
+      args: ReadonlyPartialJSONObject
+    ): ITutorAction | undefined =>
+      actions.find(action => action.id === args.action);
 
     // The input toolbar registry
     const inputToolbarRegistry = InputToolbarRegistry.defaultToolbarRegistry();
@@ -130,7 +164,13 @@ const plugin: JupyterFrontEndPlugin<void> = {
       rmRegistry,
       translator: translator ?? undefined,
       welcomeMessage: trans.__(
-        `Select a code cell and click **Explain Code** <img src="data:image/svg+xml;base64,${INFO_ICON_BASE_64}" /> or **Review Code** <img src="data:image/svg+xml;base64,${CHECK_ICON_BASE_64}" /> to get started.`
+        'Select a code cell and click %1 to get started.',
+        actions
+          .map(
+            action =>
+              `**${trans.__(action.label)}** <img src="data:image/svg+xml;base64,${btoa(action.icon.svgstr)}" />`
+          )
+          .join(` ${trans.__('or')} `)
       ),
       attachmentOpenerRegistry,
       inputToolbarRegistry
@@ -143,13 +183,12 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     let previousCell: Cell | null = null;
     const onContentChanged = () => {
-      commands.notifyCommandChanged(CommandIDs.reviewCode);
+      commands.notifyCommandChanged(CommandIDs.runAction);
     };
 
     // Keep the enabled state in sync when active cell or cell content changes.
     notebookTracker?.activeCellChanged.connect((_, cell) => {
-      commands.notifyCommandChanged(CommandIDs.explainCode);
-      commands.notifyCommandChanged(CommandIDs.reviewCode);
+      commands.notifyCommandChanged(CommandIDs.runAction);
 
       if (previousCell && !previousCell.isDisposed) {
         previousCell.model.contentChanged.disconnect(onContentChanged);
@@ -186,7 +225,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     tutorModel.messagesUpdated.connect(messagesChanged);
 
-    async function executeAction(action: 'explain' | 'review') {
+    async function executeAction(tutorAction: ITutorAction) {
+      const action = tutorAction.id;
       const cell = notebookTracker?.activeCell;
       if (!cell || cell.model.type !== 'code') return;
 
@@ -303,7 +343,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       // Retrieve initial_source from metadata
       const initialSource = cell.model.getMetadata('initial_source');
 
-      const actionTitle = action === 'review' ? 'Review code' : 'Explain code';
+      const actionTitle = trans.__(tutorAction.label);
       const question = errorSection ? `${actionTitle} and error` : actionTitle;
       const bodyContent = `${question}\n\n\`\`\`${language}\n${source}\n\`\`\`${errorSection}\n`;
 
@@ -339,63 +379,71 @@ const plugin: JupyterFrontEndPlugin<void> = {
       });
     }
 
-    // Register Explain Code command
-    commands.addCommand(CommandIDs.explainCode, {
-      label: trans.__('Explain Code'),
-      caption: trans.__('Send cell content to AI tutor for explanation'),
-      icon: infoIcon,
-      isEnabled: () => {
-        const cell = notebookTracker?.activeCell;
-        if (!cell || cell.model.type !== 'code') {
-          return false;
-        }
-        return !!cell.model.sharedModel.source.trim();
+    // Register the command running a tutor action on the active cell.
+    commands.addCommand(CommandIDs.runAction, {
+      label: args => {
+        const action = getAction(args);
+        return action ? trans.__(action.label) : trans.__('Run Tutor Action');
       },
-      isVisible: () => true,
-      execute: async () => {
-        await executeAction('explain');
+      caption: args => {
+        const action = getAction(args);
+        return action ? trans.__(action.caption) : '';
       },
-      describedBy: {
-        args: {
-          type: 'object',
-          properties: {}
-        }
-      }
-    });
-
-    // Register Review Code command
-    commands.addCommand(CommandIDs.reviewCode, {
-      label: trans.__('Review Code'),
-      caption: trans.__('Send cell content to AI tutor for review'),
-      icon: codeCheckIcon,
-      isEnabled: () => {
+      icon: args => getAction(args)?.icon,
+      isEnabled: args => {
+        const action = getAction(args);
         const cell = notebookTracker?.activeCell;
-        if (!cell || cell.model.type !== 'code') {
+        if (!action || !cell || cell.model.type !== 'code') {
           return false;
         }
         const source = cell.model.sharedModel.source.trim();
         if (!source) {
           return false;
         }
-        const initialSource = cell.model.getMetadata('initial_source');
-        if (typeof initialSource === 'string') {
-          if (initialSource.trim() === source) {
+        if (action.requiresChange) {
+          const initialSource = cell.model.getMetadata('initial_source');
+          if (
+            typeof initialSource === 'string' &&
+            initialSource.trim() === source
+          ) {
             return false;
           }
         }
         return true;
       },
-      isVisible: () => true,
-      execute: async () => {
-        await executeAction('review');
+      execute: async args => {
+        const action = getAction(args);
+        if (!action) {
+          console.warn('Unknown tutor action:', args.action);
+          return;
+        }
+        await executeAction(action);
       },
       describedBy: {
         args: {
           type: 'object',
-          properties: {}
+          properties: {
+            action: {
+              type: 'string',
+              description: trans.__('The id of the tutor action to run')
+            }
+          },
+          required: ['action']
         }
       }
     });
+
+    // Display all the tutor actions in a single cell toolbar item.
+    toolbarRegistry.addFactory(
+      'Cell',
+      ACTIONS_TOOLBAR_ITEM,
+      () =>
+        new ActionsToolbar({
+          commands,
+          commandId: CommandIDs.runAction,
+          actions
+        })
+    );
 
     if (settingRegistry) {
       settingRegistry
