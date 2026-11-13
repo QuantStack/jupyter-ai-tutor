@@ -7,9 +7,6 @@ from jupyter_server.base.handlers import APIHandler
 from pathlib import Path
 from tornado.iostream import StreamClosedError
 
-_TUTOR_FILENAME = "TUTOR.md"
-
-
 class ExplainHandler(APIHandler):
     @tornado.web.authenticated
     async def post(self):
@@ -18,6 +15,9 @@ class ExplainHandler(APIHandler):
             raise tornado.web.HTTPError(400, "Missing 'body' field in request")
 
         message_body = body["body"]
+        system_prompt = body.get("systemPrompt")
+        if not isinstance(system_prompt, str):
+            raise tornado.web.HTTPError(400, "Missing 'systemPrompt' field in request")
         action = body.get("action", "explain")
 
         config_manager = self.settings.get("jupyternaut.config_manager")
@@ -47,21 +47,6 @@ class ExplainHandler(APIHandler):
         self.set_header("Content-Type", "text/event-stream")
         self.set_header("Cache-Control", "no-cache")
         self.set_header("X-Accel-Buffering", "no")
-
-        notebook_path = body.get("notebookPath", "")
-        server_root = self.settings.get("server_root_dir", "")
-        system_prompt = None
-        if self.settings.get("jupyter_ai_tutor.discover_tutor_md", True) and notebook_path and server_root:
-            system_prompt = self._find_tutor_md(notebook_path, server_root)
-            if system_prompt:
-                self.log.info(
-                    "jupyter_ai_tutor: using TUTOR.md resolved from notebook path %s",
-                    notebook_path,
-                )
-        if system_prompt is None:
-            system_prompt = self.settings.get(
-                "jupyter_ai_tutor.default_system_prompt", ""
-            )
 
         debug_mode = self.settings.get("jupyter_ai_tutor.debug", False)
         prompt_file = None
@@ -150,24 +135,12 @@ class ExplainHandler(APIHandler):
         except StreamClosedError:
             pass
 
-    def _find_tutor_md(self, notebook_path: str, server_root: str) -> str | None:
-        """Walk up the directory tree from the notebook's directory toward the
-        server root, returning the content of the first TUTOR.md found, or None."""
-        root = Path(server_root).expanduser().resolve()
-        candidate = (root / notebook_path).resolve().parent
-        self.log.debug("jupyter_ai_tutor: searching TUTOR.md from %s up to %s", candidate, root)
-        # Stay within the server root.
-        try:
-            candidate.relative_to(root)
-        except ValueError:
-            self.log.warning("jupyter_ai_tutor: notebook path %s is outside server root %s", candidate, root)
-            return None
-        while True:
-            tutor_file = candidate / _TUTOR_FILENAME
-            self.log.debug("jupyter_ai_tutor: checking %s", tutor_file)
-            if tutor_file.is_file():
-                return tutor_file.read_text(encoding="utf-8").strip()
-            if candidate == root:
-                break
-            candidate = candidate.parent
-        return None
+
+class TutorMdHandler(APIHandler):
+    """Return the default system prompt, either the configured TUTOR.md or the
+    built-in one. TUTOR.md files from the file tree are resolved by the frontend."""
+
+    @tornado.web.authenticated
+    async def get(self):
+        content = self.settings.get("jupyter_ai_tutor.default_system_prompt", "")
+        self.finish(json.dumps({"content": content}))

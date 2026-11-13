@@ -7,10 +7,12 @@ import {
   INewMessage,
   IUser
 } from '@jupyter/chat';
+import { Contents } from '@jupyterlab/services';
 import { UUID } from '@lumino/coreutils';
 
-import { streamExplanation } from './api';
+import { fetchDefaultSystemPrompt, streamExplanation } from './api';
 import { AI_AVATAR } from './icons';
+import { findTutorMd } from './tutorMd';
 
 export interface ITutorNewMessage extends INewMessage {
   attachments?: IAttachment[];
@@ -44,9 +46,14 @@ export interface ITutorChatContext extends IChatContext {
  */
 export class TutorChatModel extends AbstractChatModel {
   private _abortController: AbortController | null = null;
+  private _contents: Contents.IManager;
+  private _defaultSystemPrompt: string | null = null;
+  private _discoverTutorMd: boolean;
 
-  constructor(options?: IChatModel.IOptions) {
+  constructor(options: TutorChatModel.IOptions) {
     super(options);
+    this._contents = options.contents;
+    this._discoverTutorMd = options.discoverTutorMd ?? true;
     this.name = 'Tutor';
     this.setReady(UUID.uuid4());
   }
@@ -89,12 +96,19 @@ export class TutorChatModel extends AbstractChatModel {
     this._abortController = new AbortController();
 
     try {
+      const signal = this._abortController.signal;
+      const systemPrompt = await this._getSystemPrompt(
+        message.notebookPath,
+        signal
+      );
       let accumulated = '';
       for await (const chunk of streamExplanation(
-        message.formattedBody ?? message.body,
-        message.notebookPath,
-        message.action,
-        this._abortController.signal
+        {
+          systemPrompt,
+          prompt: message.formattedBody ?? message.body,
+          action: message.action
+        },
+        signal
       )) {
         accumulated += chunk;
         streamingMsg.update({ body: accumulated });
@@ -135,4 +149,45 @@ export class TutorChatModel extends AbstractChatModel {
     this.stopStreaming();
     this.messagesDeleted(0, this.messages.length);
   };
+
+  /**
+   * Returns the system prompt to use for a notebook: the closest TUTOR.md in
+   * the file tree if any, otherwise the server default.
+   * @param notebookPath - Path of the notebook, as understood by the contents manager
+   * @param signal - Optional abort signal for the server request
+   */
+  private async _getSystemPrompt(
+    notebookPath: string | undefined,
+    signal?: AbortSignal
+  ): Promise<string> {
+    if (this._discoverTutorMd && notebookPath) {
+      const tutorMd = await findTutorMd(this._contents, notebookPath);
+      if (tutorMd) {
+        return tutorMd.content;
+      }
+    }
+    // The server default does not change while the server is running.
+    if (this._defaultSystemPrompt === null) {
+      this._defaultSystemPrompt = await fetchDefaultSystemPrompt(signal);
+    }
+    return this._defaultSystemPrompt;
+  }
+}
+
+export namespace TutorChatModel {
+  /**
+   * The tutor chat model options.
+   */
+  export interface IOptions extends IChatModel.IOptions {
+    /**
+     * The contents manager used to look for TUTOR.md files.
+     */
+    contents: Contents.IManager;
+    /**
+     * Whether to look for a TUTOR.md file in the file tree, walking up from the
+     * notebook directory, before falling back on the server default.
+     * Defaults to true.
+     */
+    discoverTutorMd?: boolean;
+  }
 }

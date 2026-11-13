@@ -11,6 +11,7 @@ import {
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 import { Cell, ICodeCellModel } from '@jupyterlab/cells';
+import { PageConfig } from '@jupyterlab/coreutils';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
@@ -29,6 +30,11 @@ const ANSI_ESCAPE = new RegExp(
   `${String.fromCharCode(27)}\\[[0-9;]*[A-Za-z]`,
   'g'
 );
+
+/**
+ * Page config key exposing the server 'discover_tutor_md' option.
+ */
+const PAGE_CONFIG_DISCOVER_TUTOR_MD = 'jupyterAiTutorDiscoverTutorMd';
 
 /**
  * Command IDs used by the jupyter-ai-tutor extension.
@@ -113,7 +119,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
     // Build the chat.
     const tutorModel = new TutorChatModel({
       id: 'jupyter-ai-tutor',
-      translator: translator ?? undefined
+      translator: translator ?? undefined,
+      contents: app.serviceManager.contents,
+      discoverTutorMd:
+        PageConfig.getOption(PAGE_CONFIG_DISCOVER_TUTOR_MD).toLowerCase() !==
+        'false'
     });
     const chatWidget = new ChatWidget({
       model: tutorModel,

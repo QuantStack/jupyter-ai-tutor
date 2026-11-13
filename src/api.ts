@@ -2,16 +2,79 @@ import { URLExt } from '@jupyterlab/coreutils';
 import { ServerConnection } from '@jupyterlab/services';
 
 /**
- * Streams the tutor explanation for the given message body via SSE.
+ * The default system prompt configured on the server.
+ */
+interface IDefaultSystemPrompt {
+  /**
+   * The system prompt content.
+   */
+  content: string;
+}
+
+/**
+ * Type guard for the default system prompt server response.
+ */
+function isDefaultSystemPrompt(value: unknown): value is IDefaultSystemPrompt {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  return typeof (value as Record<string, unknown>).content === 'string';
+}
+
+/**
+ * Fetches the default system prompt configured on the server (either the
+ * configured TUTOR.md or the built-in one).
+ * @param signal - Optional abort signal
+ */
+export async function fetchDefaultSystemPrompt(
+  signal?: AbortSignal
+): Promise<string> {
+  const settings = ServerConnection.makeSettings();
+  const url = URLExt.join(settings.baseUrl, 'api/jupyter-ai-tutor/tutor-md');
+
+  const response = await ServerConnection.makeRequest(
+    url,
+    { method: 'GET', signal },
+    settings
+  );
+
+  if (!response.ok) {
+    throw new ServerConnection.ResponseError(response);
+  }
+
+  const data: unknown = await response.json();
+  if (!isDefaultSystemPrompt(data)) {
+    throw new Error('Unexpected response when fetching the system prompt');
+  }
+  return data.content;
+}
+
+/**
+ * The tutor request.
+ */
+export interface ITutorRequest {
+  /**
+   * The system prompt.
+   */
+  systemPrompt: string;
+  /**
+   * The user prompt.
+   */
+  prompt: string;
+  /**
+   * The requested action.
+   */
+  action?: 'explain' | 'review';
+}
+
+/**
+ * Streams the tutor answer for the given request via SSE.
  * Yields text chunks as they arrive from the backend.
- * @param body - The user message (code + question)
- * @param notebookPath - Path of the active notebook relative to the server root
+ * @param request - The system prompt, user prompt and action
  * @param signal - Optional abort signal
  */
 export async function* streamExplanation(
-  body: string,
-  notebookPath?: string,
-  action?: 'explain' | 'review',
+  request: ITutorRequest,
   signal?: AbortSignal
 ): AsyncGenerator<string, void, undefined> {
   const settings = ServerConnection.makeSettings();
@@ -21,7 +84,11 @@ export async function* streamExplanation(
     url,
     {
       method: 'POST',
-      body: JSON.stringify({ body, notebookPath, action: action ?? 'explain' }),
+      body: JSON.stringify({
+        body: request.prompt,
+        systemPrompt: request.systemPrompt,
+        action: request.action ?? 'explain'
+      }),
       headers: { 'Content-Type': 'application/json' },
       signal
     },
