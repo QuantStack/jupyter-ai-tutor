@@ -11,18 +11,20 @@ import {
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 import { Cell, ICodeCellModel } from '@jupyterlab/cells';
-import { PageConfig } from '@jupyterlab/coreutils';
+import { PageConfig, PathExt } from '@jupyterlab/coreutils';
+import { IDocumentWidget } from '@jupyterlab/docregistry';
+import { FileEditor, IEditorTracker } from '@jupyterlab/fileeditor';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
-import { codeCheckIcon, infoIcon } from '@jupyterlab/ui-components';
-import { IToolbarWidgetRegistry } from '@jupyterlab/apputils';
+import { IToolbarWidgetRegistry, showErrorMessage } from '@jupyterlab/apputils';
 import { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 
 import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
-import { ITutorAction } from './types';
+import { TUTOR_MD_FILENAME, TutorMdManager } from './tutor-md';
+import { ITutorAction, ITutorConfig } from './types';
 import { decodeSolution, isContinuous } from './utils';
 import { ActionsToolbar } from './widgets/actions-toolbar';
 
@@ -36,25 +38,6 @@ const ANSI_ESCAPE = new RegExp(
  * Page config key exposing the server 'discover_tutor_md' option.
  */
 const PAGE_CONFIG_DISCOVER_TUTOR_MD = 'jupyterAiTutorDiscoverTutorMd';
-
-/**
- * The default tutor actions.
- */
-const DEFAULT_ACTIONS: ReadonlyArray<ITutorAction> = [
-  {
-    id: 'explain',
-    label: 'Explain Code',
-    caption: 'Send cell content to AI tutor for explanation',
-    icon: infoIcon
-  },
-  {
-    id: 'review',
-    label: 'Review Code',
-    caption: 'Send cell content to AI tutor for review',
-    icon: codeCheckIcon,
-    requiresChange: true
-  }
-];
 
 /**
  * Name of the cell toolbar item displaying the tutor actions.
@@ -77,26 +60,100 @@ const plugin: JupyterFrontEndPlugin<void> = {
     'A JupyterLab extension to add an AI-powered tutor assistant to Notebooks.',
   autoStart: true,
   requires: [IRenderMimeRegistry, IToolbarWidgetRegistry],
-  optional: [ISettingRegistry, INotebookTracker, ITranslator],
+  optional: [ISettingRegistry, INotebookTracker, ITranslator, IEditorTracker],
   activate: (
     app: JupyterFrontEnd,
     rmRegistry: IRenderMimeRegistry,
     toolbarRegistry: IToolbarWidgetRegistry,
     settingRegistry: ISettingRegistry | null,
     notebookTracker: INotebookTracker | null,
-    translator: ITranslator | null
+    translator: ITranslator | null,
+    editorTracker: IEditorTracker | null
   ) => {
     const { commands } = app;
     const trans = (translator ?? nullTranslator).load('jupyterlab');
-    const actions = DEFAULT_ACTIONS;
+
+    // The TUTOR.md manager, providing the system prompt and actions of notebooks.
+    const tutorMd = new TutorMdManager({
+      contentsManager: app.serviceManager.contents,
+      discover:
+        PageConfig.getOption(PAGE_CONFIG_DISCOVER_TUTOR_MD).toLowerCase() !==
+        'false'
+    });
+
+    // Refresh the actions buttons when a notebook configuration changes.
+    tutorMd.changed.connect(() => {
+      commands.notifyCommandChanged(CommandIDs.runAction);
+    });
+
+    // Follow the notebooks lifecycle: load the configuration as soon as a
+    // notebook is opened to display the actions buttons without delay, reload
+    // it when the notebook is moved, and forget it when the notebook is closed.
+    notebookTracker?.widgetAdded.connect((_, panel) => {
+      let notebookPath = panel.context.path;
+      const load = (): void => {
+        tutorMd.get(notebookPath).catch(err => {
+          console.error('Failed to load the tutor actions:', err);
+        });
+      };
+      // Other views of the notebook share the same path, keep its
+      // configuration while one of them is still open.
+      const forgetIfUnused = (path: string): void => {
+        const used = notebookTracker.find(
+          other => other !== panel && other.context.path === path
+        );
+        if (!used) {
+          tutorMd.forget(path);
+        }
+      };
+      panel.context.pathChanged.connect((_, newPath) => {
+        const oldPath = notebookPath;
+        notebookPath = newPath;
+        forgetIfUnused(oldPath);
+        load();
+      });
+      panel.disposed.connect(() => forgetIfUnused(notebookPath));
+      load();
+    });
 
     /**
-     * Returns the tutor action matching the command arguments, if any.
+     * Updates the notebooks using a TUTOR.md file each time it is saved from a
+     * file editor. The document is not dirty anymore once saved, either by the
+     * frontend or by the server (autosave of real-time collaboration).
+     */
+    const watchEditor = (widget: IDocumentWidget<FileEditor>): void => {
+      const { context } = widget;
+      context.model.stateChanged.connect((_, change) => {
+        if (
+          change.name === 'dirty' &&
+          change.newValue === false &&
+          PathExt.basename(context.path) === TUTOR_MD_FILENAME
+        ) {
+          tutorMd.updateTutorMd(context.path, context.model.toString());
+        }
+      });
+    };
+    editorTracker?.forEach(watchEditor);
+    editorTracker?.widgetAdded.connect((_, widget) => watchEditor(widget));
+
+    /**
+     * Returns the tutor action matching the command arguments, from the
+     * configuration of the notebook in arguments, or of the current notebook.
      */
     const getAction = (
       args: ReadonlyPartialJSONObject
-    ): ITutorAction | undefined =>
-      actions.find(action => action.id === args.action);
+    ): ITutorAction | undefined => {
+      const notebookPath =
+        typeof args.notebookPath === 'string'
+          ? args.notebookPath
+          : notebookTracker?.currentWidget?.context.path;
+      if (!notebookPath) {
+        return undefined;
+      }
+      return tutorMd
+        .getCached(notebookPath)
+        ?.actions.find(action => action.id === args.action);
+    };
 
     // The input toolbar registry
     const inputToolbarRegistry = InputToolbarRegistry.defaultToolbarRegistry();
@@ -153,24 +210,14 @@ const plugin: JupyterFrontEndPlugin<void> = {
     // Build the chat.
     const tutorModel = new TutorChatModel({
       id: 'jupyter-ai-tutor',
-      translator: translator ?? undefined,
-      contents: app.serviceManager.contents,
-      discoverTutorMd:
-        PageConfig.getOption(PAGE_CONFIG_DISCOVER_TUTOR_MD).toLowerCase() !==
-        'false'
+      translator: translator ?? undefined
     });
     const chatWidget = new ChatWidget({
       model: tutorModel,
       rmRegistry,
       translator: translator ?? undefined,
       welcomeMessage: trans.__(
-        'Select a code cell and click %1 to get started.',
-        actions
-          .map(
-            action =>
-              `**${trans.__(action.label)}** <img src="data:image/svg+xml;base64,${btoa(action.icon.svgstr)}" />`
-          )
-          .join(` ${trans.__('or')} `)
+        'Select a code cell and click one of the tutor buttons in the cell toolbar to get started.'
       ),
       attachmentOpenerRegistry,
       inputToolbarRegistry
@@ -343,7 +390,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       // Retrieve initial_source from metadata
       const initialSource = cell.model.getMetadata('initial_source');
 
-      const actionTitle = trans.__(tutorAction.label);
+      const actionTitle = tutorAction.label;
       const question = errorSection ? `${actionTitle} and error` : actionTitle;
       const bodyContent = `${question}\n\n\`\`\`${language}\n${source}\n\`\`\`${errorSection}\n`;
 
@@ -370,10 +417,25 @@ const plugin: JupyterFrontEndPlugin<void> = {
       }
       app.shell.activateById(chatWidget.id);
 
+      let config: ITutorConfig;
+      try {
+        config = await tutorMd.get(notebookPath);
+      } catch (err) {
+        console.error('Failed to load the tutor system prompt:', err);
+        showErrorMessage(
+          trans.__('Tutor error'),
+          trans.__('Failed to load the tutor system prompt.')
+        );
+        return;
+      }
+      const systemPrompt = tutorAction.prompt
+        ? `${config.systemPrompt}\n\n${tutorAction.prompt}`
+        : config.systemPrompt;
+
       await tutorModel.sendMessageToAI({
         body: bodyContent,
         formattedBody: formattedBody,
-        notebookPath,
+        systemPrompt,
         action,
         attachments: attachment ? [attachment] : undefined
       });
@@ -381,14 +443,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     // Register the command running a tutor action on the active cell.
     commands.addCommand(CommandIDs.runAction, {
-      label: args => {
-        const action = getAction(args);
-        return action ? trans.__(action.label) : trans.__('Run Tutor Action');
-      },
-      caption: args => {
-        const action = getAction(args);
-        return action ? trans.__(action.caption) : '';
-      },
+      label: args => getAction(args)?.label ?? trans.__('Run Tutor Action'),
+      caption: args => getAction(args)?.caption ?? '',
       icon: args => getAction(args)?.icon,
       isEnabled: args => {
         const action = getAction(args);
@@ -396,20 +452,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
         if (!action || !cell || cell.model.type !== 'code') {
           return false;
         }
-        const source = cell.model.sharedModel.source.trim();
-        if (!source) {
-          return false;
-        }
-        if (action.requiresChange) {
-          const initialSource = cell.model.getMetadata('initial_source');
-          if (
-            typeof initialSource === 'string' &&
-            initialSource.trim() === source
-          ) {
-            return false;
-          }
-        }
-        return true;
+        return cell.model.sharedModel.source.trim() !== '';
       },
       execute: async args => {
         const action = getAction(args);
@@ -426,6 +469,12 @@ const plugin: JupyterFrontEndPlugin<void> = {
             action: {
               type: 'string',
               description: trans.__('The id of the tutor action to run')
+            },
+            notebookPath: {
+              type: 'string',
+              description: trans.__(
+                'The path of the notebook providing the action, defaults to the current notebook'
+              )
             }
           },
           required: ['action']
@@ -434,16 +483,18 @@ const plugin: JupyterFrontEndPlugin<void> = {
     });
 
     // Display all the tutor actions in a single cell toolbar item.
-    toolbarRegistry.addFactory(
-      'Cell',
-      ACTIONS_TOOLBAR_ITEM,
-      () =>
-        new ActionsToolbar({
-          commands,
-          commandId: CommandIDs.runAction,
-          actions
-        })
-    );
+    toolbarRegistry.addFactory('Cell', ACTIONS_TOOLBAR_ITEM, cell => {
+      let panel = cell.parent;
+      while (panel && !(panel instanceof NotebookPanel)) {
+        panel = panel.parent;
+      }
+      return new ActionsToolbar({
+        commands,
+        commandId: CommandIDs.runAction,
+        tutorMd,
+        notebook: panel instanceof NotebookPanel ? panel : null
+      });
+    });
 
     if (settingRegistry) {
       settingRegistry

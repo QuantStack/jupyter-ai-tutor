@@ -17,12 +17,25 @@ export interface ITutorAction {
    */
   caption: string;
   /**
-   * Icon of the action button.
+   * Icon of the action button. The label is displayed instead if not set.
    */
-  icon: LabIcon;
+  icon?: LabIcon;
   /**
-   * Whether the action is only enabled when the cell source differs from its
-   * `initial_source` metadata.
+   * Instructions specific to the action, appended to the common system prompt.
    */
-  requiresChange?: boolean;
+  prompt: string;
+}
+
+/**
+ * The tutor configuration parsed from a TUTOR.md file.
+ */
+export interface ITutorConfig {
+  /**
+   * The system prompt common to all the actions.
+   */
+  systemPrompt: string;
+  /**
+   * The actions available.
+   */
+  actions: ITutorAction[];
 }
