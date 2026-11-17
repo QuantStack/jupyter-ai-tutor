@@ -68,6 +68,26 @@ describe('parseTutorMd', () => {
     });
   });
 
+  it('should parse Font Awesome icons', () => {
+    const iconClass = (header: string): string | undefined =>
+      parseTutorMd(`---\nscenario: hint\n${header}\n---\n`).actions[0]
+        .iconClass;
+
+    expect(iconClass('icon-fa: fa-lightbulb')).toBe('fa fa-lightbulb');
+    expect(iconClass('icon-fa: far fa-question-circle')).toBe(
+      'far fa-question-circle'
+    );
+    expect(iconClass('icon-fa: "fa-lightbulb my-class"')).toBeUndefined();
+  });
+
+  it('should prefer the JupyterLab icon over the Font Awesome one', () => {
+    const [action] = parseTutorMd(
+      '---\nscenario: hint\nicon: infoIcon\nicon-fa: fa-lightbulb\n---\n'
+    ).actions;
+    expect(action.icon).toBe(infoIcon);
+    expect(action.iconClass).toBeUndefined();
+  });
+
   it('should return no action without action headers', () => {
     const config = parseTutorMd('Only a system prompt');
     expect(config.systemPrompt).toBe('Only a system prompt');

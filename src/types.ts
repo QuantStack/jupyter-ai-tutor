@@ -17,9 +17,15 @@ export interface ITutorAction {
    */
   caption: string;
   /**
-   * Icon of the action button. The label is displayed instead if not set.
+   * JupyterLab icon of the action button.
    */
   icon?: LabIcon;
+  /**
+   * Font Awesome classes of the action button icon (e.g. `fa fa-lightbulb`),
+   * used only if `icon` is not set. The label is displayed instead of the icon
+   * if none of them is set.
+   */
+  iconClass?: string;
   /**
    * Instructions specific to the action, appended to the common system prompt.
    */

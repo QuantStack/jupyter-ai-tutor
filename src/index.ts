@@ -446,6 +446,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       label: args => getAction(args)?.label ?? trans.__('Run Tutor Action'),
       caption: args => getAction(args)?.caption ?? '',
       icon: args => getAction(args)?.icon,
+      iconClass: args => getAction(args)?.iconClass ?? '',
       isEnabled: args => {
         const action = getAction(args);
         const cell = notebookTracker?.activeCell;

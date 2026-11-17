@@ -237,9 +237,14 @@ export namespace TutorMdManager {
  * scenario: explain
  * label: Explain Code
  * icon: infoIcon
+ * icon-fa: far fa-question-circle
  * tooltip: Explain cell content
  * ---
  * ```
+ *
+ * The button icon is either a JupyterLab icon (`icon`), or a Font Awesome 5
+ * icon (`icon-fa`, e.g. `fa-lightbulb` or `far fa-question-circle`). `icon`
+ * takes precedence if both are provided.
  *
  * `---` blocks that are not valid YAML or do not contain a `scenario` key are
  * kept as regular Markdown content.
@@ -286,11 +291,15 @@ export function parseTutorMd(content: string): ITutorConfig {
     }
     const tooltip = Private.getString(data, 'tooltip');
     const label = Private.getString(data, 'label') ?? tooltip ?? scenario;
+    const icon = Private.resolveIcon(Private.getString(data, 'icon'));
     actions.push({
       id: scenario,
       label,
       caption: tooltip ?? label,
-      icon: Private.resolveIcon(Private.getString(data, 'icon')),
+      icon,
+      iconClass: icon
+        ? undefined
+        : Private.resolveIconClass(Private.getString(data, 'icon-fa')),
       prompt: sectionLines.join('\n').trim()
     });
   }
@@ -496,5 +505,42 @@ namespace Private {
     }
     console.warn(`Unknown icon '${name}' in ${TUTOR_MD_FILENAME}`);
     return undefined;
+  }
+
+  /**
+   * Matches a Font Awesome class, e.g. `fa`, `far` or `fa-lightbulb`.
+   */
+  const FA_CLASS = /^fa[a-z0-9-]*$/;
+
+  /**
+   * Matches a Font Awesome style class, e.g. `fa`, `fas`, `far` or `fab`.
+   */
+  const FA_STYLE_CLASS = /^fa[a-z]?$/;
+
+  /**
+   * Returns the CSS classes of a Font Awesome icon, provided by JupyterLab.
+   *
+   * The `fa` style class is added if no style class is provided, so that
+   * `fa-lightbulb` is displayed as `fa fa-lightbulb`.
+   * @param value - The Font Awesome classes, separated by spaces
+   * @returns The CSS classes, or undefined if they are not Font Awesome classes
+   */
+  export function resolveIconClass(
+    value: string | undefined
+  ): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+    const classes = value.split(/\s+/);
+    if (!classes.every(name => FA_CLASS.test(name))) {
+      console.warn(
+        `Invalid Font Awesome icon '${value}' in ${TUTOR_MD_FILENAME}`
+      );
+      return undefined;
+    }
+    if (!classes.some(name => FA_STYLE_CLASS.test(name))) {
+      classes.unshift('fa');
+    }
+    return classes.join(' ');
   }
 }

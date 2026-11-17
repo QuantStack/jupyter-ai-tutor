@@ -60,7 +60,7 @@ export class ActionsToolbar extends ReactWidget {
             commands={this._commands}
             id={this._commandId}
             args={{ action: action.id, notebookPath }}
-            label={action.icon ? '' : undefined}
+            label={action.icon || action.iconClass ? '' : undefined}
           />
         ))}
       </>
