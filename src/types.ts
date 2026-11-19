@@ -1,6 +1,16 @@
 import { LabIcon } from '@jupyterlab/ui-components';
 
 /**
+ * The notebook cell types a tutor action can apply to.
+ */
+export const TUTOR_CELL_TYPES = ['code', 'markdown', 'raw'] as const;
+
+/**
+ * A notebook cell type a tutor action can apply to.
+ */
+export type TutorCellType = (typeof TUTOR_CELL_TYPES)[number];
+
+/**
  * A tutor action, displayed as a button in the cell toolbar.
  */
 export interface ITutorAction {
@@ -26,6 +36,10 @@ export interface ITutorAction {
    * if none of them is set.
    */
   iconClass?: string;
+  /**
+   * The cell types the action applies to.
+   */
+  cellTypes: TutorCellType[];
   /**
    * Instructions specific to the action, appended to the common system prompt.
    */

@@ -6,7 +6,12 @@ import { ISignal, Signal } from '@lumino/signaling';
 import { parse as parseYaml } from 'yaml';
 
 import { fetchDefaultSystemPrompt } from './api';
-import { ITutorAction, ITutorConfig } from './types';
+import {
+  ITutorAction,
+  ITutorConfig,
+  TUTOR_CELL_TYPES,
+  TutorCellType
+} from './types';
 
 /**
  * The name of the file used as system prompt.
@@ -239,8 +244,13 @@ export namespace TutorMdManager {
  * icon: infoIcon
  * icon-fa: far fa-question-circle
  * tooltip: Explain cell content
+ * cell-types: [code, markdown]
  * ---
  * ```
+ *
+ * `cell-types` lists the cell types the action applies to, among `code`,
+ * `markdown` and `raw`. It can also be a single string, and defaults to
+ * `[code, markdown]` if not provided. An empty list hides the action button.
  *
  * The button icon is either a JupyterLab icon (`icon`), or a Font Awesome 5
  * icon (`icon-fa`, e.g. `fa-lightbulb` or `far fa-question-circle`). `icon`
@@ -300,6 +310,7 @@ export function parseTutorMd(content: string): ITutorConfig {
       iconClass: icon
         ? undefined
         : Private.resolveIconClass(Private.getString(data, 'icon-fa')),
+      cellTypes: Private.resolveCellTypes(data['cell-types']),
       prompt: sectionLines.join('\n').trim()
     });
   }
@@ -482,6 +493,44 @@ namespace Private {
     }
     const scenario = getString(data, 'scenario');
     return scenario ? { data, scenario } : null;
+  }
+
+  /**
+   * The cell types an action applies to when not specified.
+   */
+  const DEFAULT_CELL_TYPES: TutorCellType[] = ['code', 'markdown'];
+
+  /**
+   * Type guard for the cell types.
+   */
+  function isCellType(value: unknown): value is TutorCellType {
+    return TUTOR_CELL_TYPES.some(cellType => cellType === value);
+  }
+
+  /**
+   * Resolves the cell types an action applies to, from the `cell-types` value.
+   * @param value - A cell type or a list of cell types
+   * @returns The valid cell types, without duplicates, or the default ones if
+   * the value is not provided
+   */
+  export function resolveCellTypes(value: unknown): TutorCellType[] {
+    if (value === undefined || value === null) {
+      return [...DEFAULT_CELL_TYPES];
+    }
+    const cellTypes: TutorCellType[] = [];
+    for (const item of Array.isArray(value) ? value : [value]) {
+      const cellType = typeof item === 'string' ? item.trim() : item;
+      if (!isCellType(cellType)) {
+        console.warn(
+          `Unknown cell type '${String(item)}' in ${TUTOR_MD_FILENAME}, ignoring it`
+        );
+        continue;
+      }
+      if (!cellTypes.includes(cellType)) {
+        cellTypes.push(cellType);
+      }
+    }
+    return cellTypes;
   }
 
   /**

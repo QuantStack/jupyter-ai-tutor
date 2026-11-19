@@ -1,3 +1,7 @@
+import { Cell, ICellModel, ICodeCellModel } from '@jupyterlab/cells';
+
+import { ITutorAction } from './types';
+
 export function isContinuous(numbers: number[]): boolean {
   if (numbers.length <= 1) {
     return true;
@@ -23,4 +27,21 @@ export function decodeSolution(str: string): string {
   //   return String.fromCharCode(((c.charCodeAt(0) - base + 13) % 26) + base);
   // });
   return str;
+}
+
+/**
+ * Type guard for code cell models.
+ * @param model - The cell model
+ */
+export function isCodeCellModel(model: ICellModel): model is ICodeCellModel {
+  return model.type === 'code';
+}
+
+/**
+ * Whether a tutor action applies to a cell, depending on its type.
+ * @param action - The tutor action
+ * @param cell - The cell
+ */
+export function isActionApplicable(action: ITutorAction, cell: Cell): boolean {
+  return action.cellTypes.some(cellType => cellType === cell.model.type);
 }
