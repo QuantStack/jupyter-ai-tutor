@@ -1,4 +1,5 @@
 import json
+import re
 import tempfile
 import tornado
 
@@ -18,7 +19,9 @@ class ExplainHandler(APIHandler):
         system_prompt = body.get("systemPrompt")
         if not isinstance(system_prompt, str):
             raise tornado.web.HTTPError(400, "Missing 'systemPrompt' field in request")
-        action = body.get("action", "explain")
+        # The action is defined in TUTOR.md files and used in the debug file names,
+        # keep only safe characters.
+        action = re.sub(r"[^A-Za-z0-9_-]", "_", str(body.get("action", "")))[:64]
 
         config_manager = self.settings.get("jupyternaut.config_manager")
         if not config_manager:

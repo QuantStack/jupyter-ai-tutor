@@ -3,14 +3,8 @@
   "jupyter.lab.toolbars": {
     "Cell": [
       {
-        "name": "jupyter-ai-tutor:explain-code",
-        "command": "jupyter-ai-tutor:explain-code",
+        "name": "jupyter-ai-tutor:actions",
         "rank": 10
-      },
-      {
-        "name": "jupyter-ai-tutor:review-code",
-        "command": "jupyter-ai-tutor:review-code",
-        "rank": 11
       }
     ]
   },

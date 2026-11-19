@@ -64,7 +64,7 @@ export interface ITutorRequest {
   /**
    * The requested action.
    */
-  action?: 'explain' | 'review';
+  action?: string;
 }
 
 /**

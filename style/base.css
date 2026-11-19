@@ -33,3 +33,17 @@
   background-color: var(--jp-layout-color1);
   box-shadow: var(--jp-elevation-z2);
 }
+
+/* Display the tutor actions side by side in the cell toolbar */
+.jp-ai-tutor-ActionsToolbar {
+  display: flex;
+  flex-direction: row;
+}
+
+/* Size and color the Font Awesome icons like the JupyterLab ones */
+.jp-ai-tutor-ActionsToolbar .jp-Icon[class*='fa-'] {
+  font-size: 13px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--jp-inverse-layout-color3);
+}
