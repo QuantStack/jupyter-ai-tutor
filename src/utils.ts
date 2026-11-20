@@ -45,3 +45,21 @@ export function isCodeCellModel(model: ICellModel): model is ICodeCellModel {
 export function isActionApplicable(action: ITutorAction, cell: Cell): boolean {
   return action.cellTypes.some(cellType => cellType === cell.model.type);
 }
+
+/**
+ * Wraps a content in a Markdown fenced code block.
+ *
+ * The fence is longer than any backtick run in the content, so that fenced
+ * blocks embedded in the content (e.g. in a Markdown cell) do not close it.
+ * @param content - The content to wrap
+ * @param language - The language used for syntax highlighting, if any
+ * @returns The fenced code block
+ */
+export function fencedCodeBlock(content: string, language = ''): string {
+  const longestRun = Math.max(
+    0,
+    ...(content.match(/`+/g) ?? []).map(run => run.length)
+  );
+  const fence = '`'.repeat(Math.max(3, longestRun + 1));
+  return `${fence}${language}\n${content}\n${fence}`;
+}

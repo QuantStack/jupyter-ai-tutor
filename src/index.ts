@@ -27,6 +27,7 @@ import { TUTOR_MD_FILENAME, TutorMdManager } from './tutor-md';
 import { ITutorAction, ITutorConfig } from './types';
 import {
   decodeSolution,
+  fencedCodeBlock,
   isActionApplicable,
   isCodeCellModel,
   isContinuous
@@ -320,8 +321,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
             .map(line => line.replace(ANSI_ESCAPE, ''))
             .join('\n');
           errorSection =
-            `\n\n**Error:**\n\`\`\`\n${json.ename}: ${json.evalue}\n` +
-            `${traceback}\n\`\`\``;
+            '\n\n**Error:**\n' +
+            fencedCodeBlock(`${json.ename}: ${json.evalue}\n${traceback}`);
           break;
         }
       }
@@ -370,7 +371,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
           if (cCell.model.type === 'markdown') {
             contextStr += `${cSource}\n\n`;
           } else if (cCell.model.type === 'code') {
-            contextStr += `Preceding Code:\n\`\`\`${language}\n${cSource}\n\`\`\`\n\n`;
+            contextStr += `Preceding Code:\n${fencedCodeBlock(cSource, language)}\n\n`;
           }
         }
 
@@ -406,7 +407,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
       const actionTitle = tutorAction.label;
       const question = errorSection ? `${actionTitle} and error` : actionTitle;
-      const bodyContent = `${question}\n\n\`\`\`${sourceLanguage}\n${source}\n\`\`\`${errorSection}\n`;
+      const bodyContent = `${question}\n\n${fencedCodeBlock(source, sourceLanguage)}${errorSection}\n`;
 
       let formattedBody = `<action>${action}</action>\n\n`;
       formattedBody += `<cell_type>${cellType}</cell_type>\n\n`;
