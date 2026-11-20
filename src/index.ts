@@ -10,7 +10,7 @@ import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
-import { Cell, ICodeCellModel } from '@jupyterlab/cells';
+import { Cell } from '@jupyterlab/cells';
 import { PageConfig, PathExt } from '@jupyterlab/coreutils';
 import { IDocumentWidget } from '@jupyterlab/docregistry';
 import { FileEditor, IEditorTracker } from '@jupyterlab/fileeditor';
@@ -25,7 +25,13 @@ import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
 import { TUTOR_MD_FILENAME, TutorMdManager } from './tutor-md';
 import { ITutorAction, ITutorConfig } from './types';
-import { decodeSolution, isContinuous } from './utils';
+import {
+  decodeSolution,
+  fencedCodeBlock,
+  isActionApplicable,
+  isCodeCellModel,
+  isContinuous
+} from './utils';
 import { ActionsToolbar } from './widgets/actions-toolbar';
 
 // Matches ANSI escape sequences used for terminal colors in tracebacks.
@@ -217,7 +223,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       rmRegistry,
       translator: translator ?? undefined,
       welcomeMessage: trans.__(
-        'Select a code cell and click one of the tutor buttons in the cell toolbar to get started.'
+        'Select a cell and click one of the tutor buttons in the cell toolbar to get started.'
       ),
       attachmentOpenerRegistry,
       inputToolbarRegistry
@@ -275,17 +281,26 @@ const plugin: JupyterFrontEndPlugin<void> = {
     async function executeAction(tutorAction: ITutorAction) {
       const action = tutorAction.id;
       const cell = notebookTracker?.activeCell;
-      if (!cell || cell.model.type !== 'code') return;
+      if (!cell || !isActionApplicable(tutorAction, cell)) {
+        return;
+      }
 
+      const cellType = cell.model.type;
       const source = cell.model.sharedModel.source.trim();
       if (!source) return;
 
       const language =
         notebookTracker?.currentWidget?.model?.defaultKernelLanguage ?? '';
+      // The language used to highlight the cell source in the chat.
+      const sourceLanguage =
+        cellType === 'code'
+          ? language
+          : cellType === 'markdown'
+            ? 'markdown'
+            : '';
 
       // Collect the first error output from the cell, if any.
-      const codeModel = cell.model as ICodeCellModel;
-      const outputs = codeModel.outputs;
+      const outputs = isCodeCellModel(cell.model) ? cell.model.outputs : null;
       let errorSection = '';
       let jsonError: {
         ename: string;
@@ -293,7 +308,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
         traceback: string[];
       } | null = null;
 
-      for (let i = 0; i < outputs.length; i++) {
+      for (let i = 0; outputs && i < outputs.length; i++) {
         const output = outputs.get(i);
         if (output.type === 'error') {
           const json = output.toJSON() as {
@@ -306,8 +321,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
             .map(line => line.replace(ANSI_ESCAPE, ''))
             .join('\n');
           errorSection =
-            `\n\n**Error:**\n\`\`\`\n${json.ename}: ${json.evalue}\n` +
-            `${traceback}\n\`\`\``;
+            '\n\n**Error:**\n' +
+            fencedCodeBlock(`${json.ename}: ${json.evalue}\n${traceback}`);
           break;
         }
       }
@@ -356,7 +371,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
           if (cCell.model.type === 'markdown') {
             contextStr += `${cSource}\n\n`;
           } else if (cCell.model.type === 'code') {
-            contextStr += `Preceding Code:\n\`\`\`${language}\n${cSource}\n\`\`\`\n\n`;
+            contextStr += `Preceding Code:\n${fencedCodeBlock(cSource, language)}\n\n`;
           }
         }
 
@@ -392,9 +407,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
       const actionTitle = tutorAction.label;
       const question = errorSection ? `${actionTitle} and error` : actionTitle;
-      const bodyContent = `${question}\n\n\`\`\`${language}\n${source}\n\`\`\`${errorSection}\n`;
+      const bodyContent = `${question}\n\n${fencedCodeBlock(source, sourceLanguage)}${errorSection}\n`;
 
       let formattedBody = `<action>${action}</action>\n\n`;
+      formattedBody += `<cell_type>${cellType}</cell_type>\n\n`;
       if (studentContext) {
         formattedBody += `<context>\n${studentContext}\n</context>\n\n`;
       }
@@ -450,7 +466,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       isEnabled: args => {
         const action = getAction(args);
         const cell = notebookTracker?.activeCell;
-        if (!action || !cell || cell.model.type !== 'code') {
+        if (!action || !cell || !isActionApplicable(action, cell)) {
           return false;
         }
         return cell.model.sharedModel.source.trim() !== '';
@@ -493,7 +509,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
         commands,
         commandId: CommandIDs.runAction,
         tutorMd,
-        notebook: panel instanceof NotebookPanel ? panel : null
+        notebook: panel instanceof NotebookPanel ? panel : null,
+        cellType: cell instanceof Cell ? cell.model.type : null
       });
     });
 

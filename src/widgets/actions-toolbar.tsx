@@ -15,14 +15,16 @@ import { TutorMdManager } from '../tutor-md';
 const ACTIONS_TOOLBAR_CLASS = 'jp-ai-tutor-ActionsToolbar';
 
 /**
- * A cell toolbar item displaying one button per tutor action of the notebook.
+ * A cell toolbar item displaying one button per tutor action of the notebook
+ * applying to the cell type.
  *
  * All the buttons run the same command, with the action id as argument.
  */
 export class ActionsToolbar extends ReactWidget {
   /**
    * Creates the tutor actions toolbar item.
-   * @param options - The commands registry, command id, TUTOR.md manager and notebook
+   * @param options - The commands registry, command id, TUTOR.md manager,
+   * notebook and cell type
    */
   constructor(options: ActionsToolbar.IOptions) {
     super();
@@ -30,6 +32,7 @@ export class ActionsToolbar extends ReactWidget {
     this._commandId = options.commandId;
     this._tutorMd = options.tutorMd;
     this._notebook = options.notebook;
+    this._cellType = options.cellType;
     this.addClass(ACTIONS_TOOLBAR_CLASS);
     this._tutorMd.changed.connect(this._onConfigChanged, this);
     this._loadConfig();
@@ -47,11 +50,16 @@ export class ActionsToolbar extends ReactWidget {
   }
 
   /**
-   * Renders one command button per action, with the icon only if available.
+   * Renders one command button per action applying to the cell type, with the
+   * icon only if available.
    */
   protected render(): JSX.Element {
     const notebookPath = this._notebookPath;
-    const actions = this._tutorMd.getCached(notebookPath)?.actions ?? [];
+    const actions = (
+      this._tutorMd.getCached(notebookPath)?.actions ?? []
+    ).filter(action =>
+      action.cellTypes.some(cellType => cellType === this._cellType)
+    );
     return (
       <>
         {actions.map(action => (
@@ -99,6 +107,7 @@ export class ActionsToolbar extends ReactWidget {
   private _commandId: string;
   private _tutorMd: TutorMdManager;
   private _notebook: NotebookPanel | null;
+  private _cellType: string | null;
 }
 
 /**
@@ -125,5 +134,10 @@ export namespace ActionsToolbar {
      * The notebook containing the cell, if any.
      */
     notebook: NotebookPanel | null;
+    /**
+     * The type of the cell, or null if the toolbar is not attached to a cell.
+     * The cell widget is recreated when its type changes.
+     */
+    cellType: string | null;
   }
 }

@@ -68,6 +68,20 @@ describe('parseTutorMd', () => {
     });
   });
 
+  it('should parse the cell types', () => {
+    const cellTypes = (header: string): string[] =>
+      parseTutorMd(`---\nscenario: hint\n${header}\n---\n`).actions[0]
+        .cellTypes;
+
+    expect(cellTypes('')).toEqual(['code', 'markdown']);
+    expect(cellTypes('cell-types: [raw, code]')).toEqual(['raw', 'code']);
+    expect(cellTypes('cell-types: markdown')).toEqual(['markdown']);
+    expect(cellTypes('cell-types: [code, unknown, code]')).toEqual(['code']);
+    expect(cellTypes('cell-types:')).toEqual(['code', 'markdown']);
+    expect(cellTypes('cell-types: [unknown]')).toEqual([]);
+    expect(cellTypes('cell-types: []')).toEqual([]);
+  });
+
   it('should parse Font Awesome icons', () => {
     const iconClass = (header: string): string | undefined =>
       parseTutorMd(`---\nscenario: hint\n${header}\n---\n`).actions[0]
