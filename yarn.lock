@@ -1911,6 +1911,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@huggingface/jinja@npm:^0.5.0":
+  version: 0.5.13
+  resolution: "@huggingface/jinja@npm:0.5.13"
+  checksum: 2801f18465df844a395b28cca98f33a8403ba3b63c18537f9921487d71e1e7b3c16e2572cb2af1a4c9f530146d4d97891996e3127cea1e6aea1e8fcf6832c879
+  languageName: node
+  linkType: hard
+
 "@humanfs/core@npm:^0.19.2":
   version: 0.19.2
   resolution: "@humanfs/core@npm:0.19.2"
@@ -2976,7 +2983,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/nbformat@npm:^3.0.0 || ^4.0.0-alpha.21 || ^4.0.0, @jupyterlab/nbformat@npm:^4.6.3, @jupyterlab/nbformat@npm:^4.6.6":
+"@jupyterlab/nbformat@npm:^3.0.0 || ^4.0.0-alpha.21 || ^4.0.0, @jupyterlab/nbformat@npm:^4.0.0, @jupyterlab/nbformat@npm:^4.6.3, @jupyterlab/nbformat@npm:^4.6.6":
   version: 4.6.6
   resolution: "@jupyterlab/nbformat@npm:4.6.6"
   dependencies:
@@ -8325,6 +8332,7 @@ __metadata:
   resolution: "jupyter-ai-tutor@workspace:."
   dependencies:
     "@eslint/js": ^9.0.0
+    "@huggingface/jinja": ^0.5.0
     "@jupyter/builder": ^1.2.0
     "@jupyter/chat": ^0.25.1
     "@jupyter/eslint-plugin": ^0.0.5
@@ -8334,6 +8342,7 @@ __metadata:
     "@jupyterlab/coreutils": ^6.0.0
     "@jupyterlab/docregistry": ^4.0.0
     "@jupyterlab/fileeditor": ^4.0.0
+    "@jupyterlab/nbformat": ^4.0.0
     "@jupyterlab/notebook": ^4.0.0
     "@jupyterlab/rendermime": ^4.0.0
     "@jupyterlab/services": ^7.0.0

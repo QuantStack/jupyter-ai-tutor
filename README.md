@@ -43,6 +43,32 @@ c.JupyterAITutorApp.debug = False              # default
 | `tutor_md`          | str  | `""`    | Path to a Markdown file used as the system prompt. When empty, falls back to the built-in `TUTOR.md` shipped with the extension.                                                                                     |
 | `debug`             | bool | `False` | When enabled, prompts and model replies are logged to `jupyter-ai-tutor` temp directory for debugging purposes.                                                                                                      |
 
+### Templating
+
+The system prompt and the actions instructions of `TUTOR.md` are [Jinja](https://jinja.palletsprojects.com/en/stable/templates/) templates, rendered each time an action is run with the following variables:
+
+| Variable     | Description                                                                                                                   |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `notebook`   | The whole notebook, in [nbformat](https://nbformat.readthedocs.io/en/latest/format_description.html) (`cells`, `metadata`...) |
+| `cell`       | The cell the action is run on, in nbformat (`cell_type`, `source`, `metadata`, `outputs`...)                                  |
+| `cell_index` | The index of the cell in `notebook.cells`                                                                                     |
+| `action`     | The id of the action being run (its `scenario`)                                                                               |
+
+For example, to use some cell metadata and the preceding cells:
+
+```jinja
+{% if cell.metadata.hint %}
+Guide the student toward this hint: {{ cell.metadata.hint }}
+{% endif %}
+
+The previous cells of the notebook are:
+{% for previous in notebook.cells[:cell_index] %}
+- {{ previous.cell_type }}: {{ previous.source }}
+{% endfor %}
+```
+
+Templates are rendered with [@huggingface/jinja](https://github.com/huggingface/huggingface.js/tree/main/packages/jinja), which implements a subset of Jinja, with `trim_blocks` and `lstrip_blocks` enabled.
+
 ### Jupyternaut
 
 The default model and API key used with Jupyternaut agent can be setup via `jupyter_server_config.py` (or any traitlets CLI config):

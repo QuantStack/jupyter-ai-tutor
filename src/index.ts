@@ -23,6 +23,7 @@ import { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 
 import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
+import { IPromptContext, renderPrompt } from './prompt';
 import { TUTOR_MD_FILENAME, TutorMdManager } from './tutor-md';
 import { ITutorAction, ITutorConfig } from './types';
 import {
@@ -444,9 +445,35 @@ const plugin: JupyterFrontEndPlugin<void> = {
         );
         return;
       }
-      const systemPrompt = tutorAction.prompt
-        ? `${config.systemPrompt}\n\n${tutorAction.prompt}`
-        : config.systemPrompt;
+      // Render the TUTOR.md templates with the notebook and the cell.
+      const notebookModel = notebook?.model;
+      if (!notebookModel) {
+        return;
+      }
+      const promptContext: IPromptContext = {
+        action,
+        notebook: notebookModel.sharedModel.toJSON(),
+        cell: cell.model.toJSON(),
+        cell_index: notebook.activeCellIndex
+      };
+      let systemPrompt: string;
+      try {
+        systemPrompt = [config.systemPrompt, tutorAction.prompt]
+          .map(template => renderPrompt(template, promptContext))
+          .filter(prompt => prompt !== '')
+          .join('\n\n');
+      } catch (err) {
+        console.error('Failed to render the tutor system prompt:', err);
+        showErrorMessage(
+          trans.__('Tutor error'),
+          trans.__(
+            'Failed to render the %1 template: %2',
+            TUTOR_MD_FILENAME,
+            err instanceof Error ? err.message : String(err)
+          )
+        );
+        return;
+      }
 
       await tutorModel.sendMessageToAI({
         body: bodyContent,

@@ -42,6 +42,7 @@ export interface ITutorAction {
   cellTypes: TutorCellType[];
   /**
    * Instructions specific to the action, appended to the common system prompt.
+   * It is a Jinja template, rendered when the action is run.
    */
   prompt: string;
 }
@@ -51,7 +52,8 @@ export interface ITutorAction {
  */
 export interface ITutorConfig {
   /**
-   * The system prompt common to all the actions.
+   * The system prompt common to all the actions. It is a Jinja template,
+   * rendered when an action is run.
    */
   systemPrompt: string;
   /**
