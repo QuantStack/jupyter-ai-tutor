@@ -14,7 +14,6 @@ import { AI_AVATAR } from './icons';
 
 export interface ITutorNewMessage extends INewMessage {
   attachments?: IAttachment[];
-  formattedBody?: string;
   action?: string;
   /**
    * The system prompt sent to the tutor.
@@ -97,7 +96,7 @@ export class TutorChatModel extends AbstractChatModel {
       for await (const chunk of streamExplanation(
         {
           systemPrompt: message.systemPrompt,
-          prompt: message.formattedBody ?? message.body,
+          prompt: message.body,
           action: message.action
         },
         signal

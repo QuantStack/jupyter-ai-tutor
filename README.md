@@ -67,6 +67,10 @@ The previous cells of the notebook are:
 {% endfor %}
 ```
 
+The ANSI escape sequences (terminal colors) are removed from the error outputs tracebacks.
+
+The cell and its context are only sent to the tutor through the templates: the built-in `TUTOR.md` describes them in a `## Request` section (the cell source and error, the preceding cells, and the `initial_source`, `reference_solution` and `evaluation_criteria` cell metadata). A custom `TUTOR.md` should include a similar section, the user message only contains the cell source and error, as displayed in the chat.
+
 Templates are rendered with [@huggingface/jinja](https://github.com/huggingface/huggingface.js/tree/main/packages/jinja), which implements a subset of Jinja, with `trim_blocks` and `lstrip_blocks` enabled.
 
 ### Jupyternaut
