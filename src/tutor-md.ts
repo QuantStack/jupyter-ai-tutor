@@ -258,6 +258,9 @@ export namespace TutorMdManager {
  *
  * `---` blocks that are not valid YAML or do not contain a `scenario` key are
  * kept as regular Markdown content.
+ *
+ * The common system prompt and the actions instructions are Jinja templates,
+ * rendered when an action is run (see `renderPrompt()`).
  * @param content - The TUTOR.md content
  * @returns The common system prompt and the actions
  */

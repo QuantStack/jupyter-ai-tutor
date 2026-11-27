@@ -23,22 +23,16 @@ import { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 
 import { clearItem, stopItem } from './components';
 import { TUTOR_USER, TutorChatModel } from './model';
+import { createPromptContext, renderPrompt, stripAnsi } from './prompt';
 import { TUTOR_MD_FILENAME, TutorMdManager } from './tutor-md';
 import { ITutorAction, ITutorConfig } from './types';
 import {
-  decodeSolution,
   fencedCodeBlock,
   isActionApplicable,
   isCodeCellModel,
   isContinuous
 } from './utils';
 import { ActionsToolbar } from './widgets/actions-toolbar';
-
-// Matches ANSI escape sequences used for terminal colors in tracebacks.
-const ANSI_ESCAPE = new RegExp(
-  `${String.fromCharCode(27)}\\[[0-9;]*[A-Za-z]`,
-  'g'
-);
 
 /**
  * Page config key exposing the server 'discover_tutor_md' option.
@@ -302,11 +296,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
       // Collect the first error output from the cell, if any.
       const outputs = isCodeCellModel(cell.model) ? cell.model.outputs : null;
       let errorSection = '';
-      let jsonError: {
-        ename: string;
-        evalue: string;
-        traceback: string[];
-      } | null = null;
 
       for (let i = 0; outputs && i < outputs.length; i++) {
         const output = outputs.get(i);
@@ -316,10 +305,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
             evalue: string;
             traceback: string[];
           };
-          jsonError = json;
-          const traceback = json.traceback
-            .map(line => line.replace(ANSI_ESCAPE, ''))
-            .join('\n');
+          const traceback = json.traceback.map(stripAnsi).join('\n');
           errorSection =
             '\n\n**Error:**\n' +
             fencedCodeBlock(`${json.ename}: ${json.evalue}\n${traceback}`);
@@ -327,10 +313,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
         }
       }
 
-      // Collect preceding cells context.
+      // Attach the preceding cells, displayed in the chat as the exercise context.
       const notebook = notebookTracker?.currentWidget?.content;
       const notebookPath = notebookTracker?.currentWidget?.context.path ?? '';
-      let studentContext = '';
       let attachment: INotebookAttachment | undefined;
 
       if (notebook) {
@@ -354,7 +339,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
           contextCells.push(notebook.widgets[i]);
         }
 
-        let contextStr = '';
         const cellsForAttachment = [];
 
         for (const cCell of contextCells) {
@@ -367,15 +351,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
             id: cCell.model.id,
             input_type: cCell.model.type as 'raw' | 'markdown' | 'code'
           });
-
-          if (cCell.model.type === 'markdown') {
-            contextStr += `${cSource}\n\n`;
-          } else if (cCell.model.type === 'code') {
-            contextStr += `Preceding Code:\n${fencedCodeBlock(cSource, language)}\n\n`;
-          }
         }
-
-        studentContext = contextStr.trim();
 
         if (cellsForAttachment.length > 0) {
           attachment = {
@@ -385,48 +361,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
           };
         }
       }
-      // Format student answer
-      let studentAnswer = source;
-      if (jsonError) {
-        const traceback = jsonError.traceback
-          .map(line => line.replace(ANSI_ESCAPE, ''))
-          .join('\n');
-        studentAnswer += `\n\nError:\n${jsonError.ename}: ${jsonError.evalue}\n${traceback}`;
-      }
-
-      // Retrieve and decode reference_solution from metadata
-      const rawSolution = cell.model.getMetadata('reference_solution');
-      const referenceSolution =
-        typeof rawSolution === 'string' ? decodeSolution(rawSolution) : '';
-
-      // Retrieve evaluation_criteria from metadata
-      const evaluationCriteria = cell.model.getMetadata('evaluation_criteria');
-
-      // Retrieve initial_source from metadata
-      const initialSource = cell.model.getMetadata('initial_source');
 
       const actionTitle = tutorAction.label;
       const question = errorSection ? `${actionTitle} and error` : actionTitle;
       const bodyContent = `${question}\n\n${fencedCodeBlock(source, sourceLanguage)}${errorSection}\n`;
-
-      let formattedBody = `<action>${action}</action>\n\n`;
-      formattedBody += `<cell_type>${cellType}</cell_type>\n\n`;
-      if (studentContext) {
-        formattedBody += `<context>\n${studentContext}\n</context>\n\n`;
-      }
-      formattedBody += `<source>\n${studentAnswer}\n</source>`;
-
-      if (initialSource && typeof initialSource === 'string') {
-        formattedBody += `\n\n<initial_source>\n${initialSource}\n</initial_source>`;
-      }
-      if (referenceSolution) {
-        formattedBody += `\n\n<reference_solution>\n${referenceSolution}\n</reference_solution>`;
-      }
-      if (evaluationCriteria && typeof evaluationCriteria === 'string') {
-        formattedBody += `\n\n<evaluation_criteria>\n${evaluationCriteria}\n</evaluation_criteria>`;
-      }
-
-      formattedBody += '\n';
 
       if (!chatWidget.isAttached) {
         app.shell.add(chatWidget, 'right');
@@ -444,13 +382,40 @@ const plugin: JupyterFrontEndPlugin<void> = {
         );
         return;
       }
-      const systemPrompt = tutorAction.prompt
-        ? `${config.systemPrompt}\n\n${tutorAction.prompt}`
-        : config.systemPrompt;
+      // Render the TUTOR.md templates with the notebook and the cell.
+      const notebookModel = notebook?.model;
+      if (!notebookModel) {
+        return;
+      }
+      const promptContext = createPromptContext(
+        action,
+        notebookModel.sharedModel.toJSON(),
+        notebook.activeCellIndex
+      );
+      if (!promptContext) {
+        return;
+      }
+      let systemPrompt: string;
+      try {
+        systemPrompt = [config.systemPrompt, tutorAction.prompt]
+          .map(template => renderPrompt(template, promptContext))
+          .filter(prompt => prompt !== '')
+          .join('\n\n');
+      } catch (err) {
+        console.error('Failed to render the tutor system prompt:', err);
+        showErrorMessage(
+          trans.__('Tutor error'),
+          trans.__(
+            'Failed to render the %1 template: %2',
+            TUTOR_MD_FILENAME,
+            err instanceof Error ? err.message : String(err)
+          )
+        );
+        return;
+      }
 
       await tutorModel.sendMessageToAI({
         body: bodyContent,
-        formattedBody: formattedBody,
         systemPrompt,
         action,
         attachments: attachment ? [attachment] : undefined
